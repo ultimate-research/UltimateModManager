@@ -1,8 +1,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <fstream>
-//#include <dirent.h>
-//#include <iostream>
 #include <sys/stat.h>
 
 #include <switch.h>
@@ -20,12 +18,14 @@ Result romfsMountFromCurrentProcess(const char *name) {
 
 void copy(char* from, char* to)
 {
+    remove(to);
+    //rmdir(to);
     appletBeginBlockingHomeButton(0);
     appletSetMediaPlaybackState(true);
     // one eighth of fat32 limit. Smaller might give better performance. IDK
     u64 bufSize = 0x1FFFE000;
     bool exFat = false;
-    remove(to);
+    //bool exists = access( from, F_OK ) != -1;
     // I misunderstood this command
     //fsIsExFatSupported(&exFat);
     if(!exFat)
@@ -39,27 +39,40 @@ void copy(char* from, char* to)
 
       fsdevSetArchiveBit(to);
     }
-    std::ifstream source(from , std::ios::binary);
+
+    std::ifstream source(from, std::ios::binary);
     std::ofstream dest(to, std::ios::binary);
 
     source.seekg(0, std::ios::end);
-    std::ifstream::pos_type size = source.tellg();
+    u64 size = source.tellg();
     source.seekg(0);
+/*
+    struct stat stat_buf;
+    stat(to, &stat_buf);
+    u64 size = stat_buf.st_size;
+*/
 
     char* buf = new char[bufSize];
     u64 sizeWritten = 0;
-    int loops = size / bufSize;
-    int loopCount = 0;
     int percent = 0;
-    while(sizeWritten < size && percent < 250)
+
+    // I don't understand the cause/effect here, but this does seem to solve it.
+    if(size == 0)
+      printf("\x1b[4;2HThere might be a problem with the data.arc file on your sd. Please manually Remove it.");
+    while(sizeWritten < size)
     {
+      if(sizeWritten + bufSize > size) //does this matter? Do I want this?
+      {
+        delete[] buf;
+        bufSize = size-sizeWritten;
+        buf = new char[bufSize];
+      }
       source.read(buf,bufSize);
       dest.write(buf,bufSize);
       sizeWritten += bufSize;
-      loopCount++;
-      percent = loopCount * 100 / loops;
+      percent = sizeWritten * 100 / size;
       printf(("\x1b[4;2H" + std::to_string(percent) + "/100").c_str()); // this font not support '%'?
-      printf(("\x1b[35;2H" + std::to_string(size) + ", " + std::to_string(sizeWritten)).c_str());
+      //printf(("\x1b[35;2H" + std::to_string(size) + ", " + std::to_string(sizeWritten)).c_str());
       consoleUpdate(NULL);
     }
     delete[] buf;
@@ -79,7 +92,7 @@ int main(int argc, char **argv)
     //pmshellGetApplicationPid(&pid);
 
 
-
+    bool done = false;
     while(appletMainLoop())
     {
         //Scan all the inputs. This should be done once for each frame
@@ -92,14 +105,15 @@ int main(int argc, char **argv)
 
         romfsMountFromCurrentProcess("romfs");
 
-        if (kDown & KEY_A)
+        if (kDown & KEY_A && !done)
         {
           printf("\x1b[3;2Hoh boy, here it goes. Give it a minute.");
           consoleUpdate(NULL);
           copy("romfs:/data.arc","/atmosphere/titles/01006A800016E000/romfs/data.arc");
           // did not actually clear the line
           //printf("\x1b[3;2                                        ");
-          printf("\x1b[5;2HDone.");
+          done = true;  // So you don't accidentally dump twice
+          printf("\nDone.");
         }
 
         consoleUpdate(NULL);
