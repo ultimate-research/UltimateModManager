@@ -30,8 +30,8 @@ include $(DEVKITPRO)/libnx/switch_rules
 #     - icon.jpg
 #     - <libnx folder>/default_icon.jpg
 #---------------------------------------------------------------------------------
-VERSION_MAJOR := 1
-VERSION_MINOR := 0
+VERSION_MAJOR := 0
+VERSION_MINOR := 2
 VERSION_MICRO := 0
 
 APP_TITLE	:=	Data Arc Dumper
@@ -60,12 +60,12 @@ CFLAGS	:=	-g -Wall -O3 -ffunction-sections \
 
 CFLAGS	+=	$(INCLUDE) -D__SWITCH__
 
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=c++17
+CXXFLAGS	:= $(CFLAGS) -fno-rtti -std=c++17
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-no-as-needed,-Map,$(notdir $*.map)
 
-LIBS	:= -lnx
+LIBS	:= -lnx -lstdc++fs
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
