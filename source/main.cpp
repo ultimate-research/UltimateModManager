@@ -8,6 +8,27 @@
 #include <hl_md5wrapper.h>
 #include <switch.h>
 
+bool isServiceRunning(const char *serviceName) {
+  Handle handle;
+  bool running = R_FAILED(smRegisterService(&handle, serviceName, false, 1));
+
+  svcCloseHandle(handle);
+
+  if (!running)
+    smUnregisterService(serviceName);
+
+  return running;
+}
+
+std::string getCFW()
+{
+  if (isServiceRunning("tx"))
+    return "sxos";
+  else if (isServiceRunning("rnx"))
+    return "reinx";
+  return "atmosphere";
+}
+
 void copy(char* from, char* to, bool exfat = false)
 {
     //remove(to);
@@ -161,6 +182,8 @@ int main(int argc, char **argv)
 
     bool done = false;
     bool exfat = false;
+    std::string cfw = getCFW();
+
     while(appletMainLoop())
     {
         hidScanInput();
@@ -175,7 +198,7 @@ int main(int argc, char **argv)
           consoleUpdate(NULL);
           hashwrapper *md5 = new md5wrapper();
           appletSetMediaPlaybackState(true);
-          std::string hash = md5->getHashFromFile("sdmc:/atmosphere/titles/01006A800016E000/romfs/data.arc");
+          std::string hash = md5->getHashFromFile("sdmc:/" + cfw + "/titles/01006A800016E000/romfs/data.arc");
           appletSetMediaPlaybackState(false);
           printf("\nmd5:%s", hash.c_str());
           delete md5;
@@ -195,7 +218,7 @@ int main(int argc, char **argv)
           */
           appletBeginBlockingHomeButton(0);
           appletSetMediaPlaybackState(true);
-          copy((char *)"romfs:/data.arc", (char *)"sdmc:/atmosphere/titles/01006A800016E000/romfs/data.arc", exfat);
+          copy((char*)"romfs:/data.arc", (char*)("sdmc:/" + cfw + "/titles/01006A800016E000/romfs/data.arc").c_str(), exfat);
           appletEndBlockingHomeButton();
           appletSetMediaPlaybackState(false);
           romfsUnmount("romfs");
