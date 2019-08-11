@@ -42,15 +42,10 @@ u64 runningTID()
   return tid;
 }
 
-void copy(char* from, char* to, bool exfat = false)
+void copy(const char* from, const char* to, bool exfat = false)
 {
-    //remove(to);
-    //unlink(to);
-    //std::filesystem::remove_all(to);
-
-
-    const u64 fat32Max = 0xFFFFFFFF;
-    const u64 splitSize = 0xFFFF0000;
+    //const u64 fat32Max = 0xFFFFFFFF;
+    //const u64 splitSize = 0xFFFF0000;
     const u64 smashTID = 0x01006A800016E000;
     // Smaller or larger might give better performance. IDK
     //u64 bufSize = 0x1FFFE000;
@@ -62,7 +57,6 @@ void copy(char* from, char* to, bool exfat = false)
       printf("\nYou must be currently overriding smash for this tool to work");
       return;
     }
-
     std::ifstream source(from, std::ifstream::binary);
     if(source.fail())
     {
@@ -78,11 +72,8 @@ void copy(char* from, char* to, bool exfat = false)
       printf("\nNot enough space on sd card.");
       return;
     }
-
     if(!exfat)
-    {
       fsdevCreateFile(to, 0, FS_CREATE_BIG_FILE);
-    }
 
     std::ofstream dest(to, std::ofstream::binary);
     if(dest.fail())
@@ -94,7 +85,7 @@ void copy(char* from, char* to, bool exfat = false)
     char* buf = new char[bufSize];
     u64 sizeWritten = 0;
     int percent = 0;
-    bool FSChecked = false;
+    //bool FSChecked = false;
 
     if(size == 0)
       printf("\x1b[4;2HThere might be a problem with the data.arc file on your sd. Please manually Remove it.");
@@ -167,8 +158,8 @@ void copy(char* from, char* to, bool exfat = false)
       sizeWritten += bufSize;
       percent = sizeWritten * 100 / size;
       printf("\x1b[6;2H%d/100", percent);
-      //printf("\x1b[20;2Hdest pos: %lld, source pos: %lld", (long long int)dest.tellp(), (long long int)source.tellg());
-      //printf("\x1b[22;2H%lu/%lu", sizeWritten, size);
+      //printf("\x1b[20;2Hdest pos: %lld, source pos: %lld", (long long int)dest.tellp(), (long long int)source.tellg());  // Debug log
+      //printf("\x1b[22;2H%lu/%lu", sizeWritten, size);  // Debug log
       consoleUpdate(NULL);
     }
     delete[] buf;
@@ -184,6 +175,9 @@ int main(int argc, char **argv)
     bool done = false;
     bool exfat = false;
     std::string cfw = getCFW();
+    std::string outPath = "sdmc:/" + cfw + "/titles/01006A800016E000/romfs/data.arc";
+
+    remove(outPath.c_str());
 
     while(appletMainLoop())
     {
@@ -199,7 +193,7 @@ int main(int argc, char **argv)
           consoleUpdate(NULL);
           hashwrapper *md5 = new md5wrapper();
           appletSetMediaPlaybackState(true);
-          std::string hash = md5->getHashFromFile("sdmc:/" + cfw + "/titles/01006A800016E000/romfs/data.arc");
+          std::string hash = md5->getHashFromFile(outPath);
           appletSetMediaPlaybackState(false);
           printf("\nmd5:%s", hash.c_str());
           delete md5;
@@ -207,19 +201,13 @@ int main(int argc, char **argv)
         if (kDown & KEY_B && !done) exfat = true;
         if ((kDown & KEY_A || kDown & KEY_B) && !done)
         {
-
           printf("\nStarted");
           consoleUpdate(NULL);
           u64 startTime = std::time(0);
           romfsMountFromCurrentProcess("romfs");
-          /*
-          FsFileSystem fs;
-          fsOpenFileSystemWithPatch(&fs, 01006A800016E000, 6);
-          //romfsMountFromStorage(fs, 0, "romfs");
-          */
           appletBeginBlockingHomeButton(0);
           appletSetMediaPlaybackState(true);
-          copy((char*)"romfs:/data.arc", (char*)("sdmc:/" + cfw + "/titles/01006A800016E000/romfs/data.arc").c_str(), exfat);
+          copy("romfs:/data.arc", outPath.c_str(), exfat);
           appletEndBlockingHomeButton();
           appletSetMediaPlaybackState(false);
           romfsUnmount("romfs");
@@ -229,11 +217,8 @@ int main(int argc, char **argv)
           printf("\nDone in %f minutes", (float)(endTime - startTime)/60);
           printf("\nPress A to calculate md5");
         }
-
-
         consoleUpdate(NULL);
     }
-
     consoleExit(NULL);
     return 0;
 }
