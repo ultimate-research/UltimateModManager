@@ -29,6 +29,19 @@ std::string getCFW()
   return "atmosphere";
 }
 
+u64 runningTID()
+{
+  u64 pid = 0;
+  u64 tid = 0;
+  pmdmntInitialize();
+  pminfoInitialize();
+  pmdmntGetApplicationPid(&pid);
+  pminfoGetTitleId(&tid, pid);
+  pminfoExit();
+  pmdmntExit();
+  return tid;
+}
+
 void copy(char* from, char* to, bool exfat = false)
 {
     //remove(to);
@@ -44,17 +57,7 @@ void copy(char* from, char* to, bool exfat = false)
     //u64 bufSize = 0x8000000;
     u64 bufSize = 0x0F0F0F0F;
 
-
-    u64 pid = 0;
-    u64 tid = 0;
-    pmdmntInitialize();
-    pminfoInitialize();
-    pmdmntGetApplicationPid(&pid);
-    pminfoGetTitleId(&tid, pid);
-    pminfoExit();
-    pmdmntExit();
-    //printf("\nTID: %ld", tid);
-    if(tid != smashTID)
+    if(runningTID() != smashTID)
     {
       printf("\nYou must be currently overriding smash for this tool to work");
       return;
@@ -87,8 +90,6 @@ void copy(char* from, char* to, bool exfat = false)
       printf("\ncould not open destination file");
       return;
     }
-
-
 
     char* buf = new char[bufSize];
     u64 sizeWritten = 0;
