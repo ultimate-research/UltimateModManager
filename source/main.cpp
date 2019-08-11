@@ -169,7 +169,7 @@ int main(int argc, char **argv)
 {
     consoleInit(NULL);
 
-    printf("\nYou must be currently overriding smash for this tool to work.");
+    printf("\nData Arc Dumper");
     printf("\nPress 'A' to dump as a split file.\nPress 'B' to dump as a single file");
 
     bool done = false;
