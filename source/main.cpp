@@ -42,6 +42,10 @@ u64 runningTID()
   return tid;
 }
 
+bool fileExists (const std::string& name) {
+    return (access(name.c_str(), F_OK) != -1);
+}
+
 void copy(const char* from, const char* to, bool exfat = false)
 {
     //const u64 fat32Max = 0xFFFFFFFF;
@@ -157,7 +161,7 @@ void copy(const char* from, const char* to, bool exfat = false)
       }
       sizeWritten += bufSize;
       percent = sizeWritten * 100 / size;
-      printf("\x1b[6;2H%d/100", percent);
+      printf("\x1b[10;2H%d/100", percent);
       //printf("\x1b[20;2Hdest pos: %lld, source pos: %lld", (long long int)dest.tellp(), (long long int)source.tellg());  // Debug log
       //printf("\x1b[22;2H%lu/%lu", sizeWritten, size);  // Debug log
       consoleUpdate(NULL);
@@ -170,7 +174,9 @@ int main(int argc, char **argv)
     consoleInit(NULL);
 
     printf("\nData Arc Dumper");
-    printf("\nPress 'A' to dump as a split file.\nPress 'B' to dump as a single file");
+    printf("\nPress 'A' to dump as a split file.");
+    printf("\nPress 'B' to dump as a single file");
+    printf("\nPress 'X' to generate an MD5 hash of the file");
 
     bool done = false;
     bool exfat = false;
@@ -185,16 +191,26 @@ int main(int argc, char **argv)
 
         if (kDown & KEY_PLUS) break; // break in order to return to hbmenu
 
-        if (kDown & KEY_A && done)
+        if (kDown & KEY_X)
         {
-          printf("\nStarted");
-          consoleUpdate(NULL);
-          hashwrapper *md5 = new md5wrapper();
-          appletSetMediaPlaybackState(true);
-          std::string hash = md5->getHashFromFile(outPath);
-          appletSetMediaPlaybackState(false);
-          printf("\nmd5:%s", hash.c_str());
-          delete md5;
+          if(fileExists(outPath))
+          {
+            printf("\nStarted");
+            consoleUpdate(NULL);
+            u64 startTime = std::time(0);
+            // Should I block home button here too?
+            appletSetMediaPlaybackState(true);
+            hashwrapper *md5 = new md5wrapper();
+            std::string hash = md5->getHashFromFile(outPath);
+            delete md5;
+            appletSetMediaPlaybackState(false);
+            u64 endTime = std::time(0);
+            printf("\nmd5:%s\nHashing took %f minutes", hash.c_str(), (float)(endTime - startTime)/60);
+          }
+          else
+          {
+            printf("\nNo data.arc found on sd.");
+          }
         }
         if (kDown & KEY_B && !done) exfat = true;
         if ((kDown & KEY_A || kDown & KEY_B) && !done)
@@ -214,7 +230,6 @@ int main(int argc, char **argv)
 
           done = true;  // So you don't accidentally dump twice
           printf("\nDone in %f minutes", (float)(endTime - startTime)/60);
-          printf("\nPress A to calculate md5");
         }
         consoleUpdate(NULL);
     }
