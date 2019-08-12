@@ -167,7 +167,7 @@ void copy(const char* from, const char* to, bool exfat = false)
       consoleUpdate(NULL);
     }
     delete[] buf;
-    printf("\n");
+    //printf("\n");
 }
 
 int main(int argc, char **argv)

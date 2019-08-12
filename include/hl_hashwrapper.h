@@ -86,7 +86,8 @@
 #include "hl_exception.h"
 
 //----------------------------------------------------------------------
-
+//just to update console
+#include "switch.h"
 /**
  *  @brief 	This class represents the baseclass for all subwrappers
  *
@@ -273,9 +274,18 @@ class hashwrapper
 			 * read the file in 1024b blocks and
 			 * update the context for every block
 			 */
+			fseek(file, 0, SEEK_END);
+ 			long unsigned int size = ftell(file);
+ 			fseek(file, 0, SEEK_SET);
+			long unsigned int sizeRead = 0;
+			int percent = 0;
 			while( (len = fread(buffer,1,bufSize,file)) )
 			{
 				updateContext(buffer, len);
+				sizeRead += bufSize;
+				percent = sizeRead * 100 / size;
+				printf("\x1b[s\n%d/100\x1b[u", percent);
+				consoleUpdate(NULL);
 			}
 
 			//close the file and create the hash
