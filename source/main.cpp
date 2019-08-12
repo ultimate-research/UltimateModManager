@@ -230,6 +230,7 @@ int main(int argc, char **argv)
 
           done = true;  // So you don't accidentally dump twice
           printf("\nDone in %f minutes", (float)(endTime - startTime)/60);
+          printf("\nPress 'X' generate an MD5 hash of the file");
         }
         consoleUpdate(NULL);
     }
