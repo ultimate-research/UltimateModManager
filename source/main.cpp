@@ -161,12 +161,13 @@ void copy(const char* from, const char* to, bool exfat = false)
       }
       sizeWritten += bufSize;
       percent = sizeWritten * 100 / size;
-      printf("\x1b[10;2H%d/100", percent);
+      printf("\x1b[s\n%d/100\x1b[u", percent);
       //printf("\x1b[20;2Hdest pos: %lld, source pos: %lld", (long long int)dest.tellp(), (long long int)source.tellg());  // Debug log
       //printf("\x1b[22;2H%lu/%lu", sizeWritten, size);  // Debug log
       consoleUpdate(NULL);
     }
     delete[] buf;
+    printf("\n");
 }
 
 int main(int argc, char **argv)
@@ -180,8 +181,7 @@ int main(int argc, char **argv)
 
     bool done = false;
     bool exfat = false;
-    std::string cfw = getCFW();
-    std::string outPath = "sdmc:/" + cfw + "/titles/01006A800016E000/romfs/data.arc";
+    std::string outPath = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
 
     while(appletMainLoop())
     {
