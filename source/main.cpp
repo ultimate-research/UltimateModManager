@@ -177,8 +177,6 @@ int main(int argc, char **argv)
     std::string cfw = getCFW();
     std::string outPath = "sdmc:/" + cfw + "/titles/01006A800016E000/romfs/data.arc";
 
-    remove(outPath.c_str());
-
     while(appletMainLoop())
     {
         hidScanInput();
@@ -204,6 +202,7 @@ int main(int argc, char **argv)
           printf("\nStarted");
           consoleUpdate(NULL);
           u64 startTime = std::time(0);
+          remove(outPath.c_str());
           romfsMountFromCurrentProcess("romfs");
           appletBeginBlockingHomeButton(0);
           appletSetMediaPlaybackState(true);
