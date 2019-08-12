@@ -31,8 +31,8 @@ include $(DEVKITPRO)/libnx/switch_rules
 #     - <libnx folder>/default_icon.jpg
 #---------------------------------------------------------------------------------
 VERSION_MAJOR := 0
-VERSION_MINOR := 2
-VERSION_MICRO := 2
+VERSION_MINOR := 3
+VERSION_MICRO := 0
 
 APP_TITLE	:=	Data Arc Dumper
 APP_AUTHOR	:=	Genwald
