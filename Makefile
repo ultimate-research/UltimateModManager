@@ -32,7 +32,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 #---------------------------------------------------------------------------------
 VERSION_MAJOR := 0
 VERSION_MINOR := 2
-VERSION_MICRO := 0
+VERSION_MICRO := 2
 
 APP_TITLE	:=	Data Arc Dumper
 APP_AUTHOR	:=	Genwald
