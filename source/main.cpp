@@ -195,7 +195,7 @@ int main(int argc, char **argv)
         {
           if(fileExists(outPath))
           {
-            printf("\nStarted");
+            printf("\nStarted hash generation");
             consoleUpdate(NULL);
             u64 startTime = std::time(0);
             // Should I block home button here too?
@@ -215,7 +215,7 @@ int main(int argc, char **argv)
         if (kDown & KEY_B && !done) exfat = true;
         if ((kDown & KEY_A || kDown & KEY_B) && !done)
         {
-          printf("\nStarted");
+          printf("\nStarted dumping");
           consoleUpdate(NULL);
           u64 startTime = std::time(0);
           remove(outPath.c_str());
