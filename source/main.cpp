@@ -113,8 +113,12 @@ void copy(const char* from, const char* to, bool exfat = false)
     }
     std::string folder(to);
     folder = folder.substr(0, folder.find_last_of("/"));
+    //todo: do this better
     if(!std::filesystem::exists(folder))
+    {
+      mkdir(folder.substr(0, folder.find_last_of("/")).c_str(), 0744);
       mkdir(folder.c_str(), 0744);
+    }
     if(!exfat)
       fsdevCreateFile(to, 0, FS_CREATE_BIG_FILE);
 
