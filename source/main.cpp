@@ -5,8 +5,42 @@
 #include <filesystem>
 #include <ctime>
 
-#include <hl_md5wrapper.h>
+#include <mbedtls/md5.h>
 #include <switch.h>
+
+void md5HashFromFile(std::string filename, unsigned char* out)
+{
+    FILE *inFile = fopen (filename.c_str(), "rb");
+    mbedtls_md5_context md5Context;
+    int bytes;
+    u64 bufSize = 500000;
+    unsigned char data[bufSize];
+
+    if (inFile == NULL)
+    {
+      printf ("File can't be opened.\n");
+      return;
+    }
+    mbedtls_md5_init (&md5Context);
+    mbedtls_md5_starts_ret(&md5Context);
+
+    fseek(inFile, 0, SEEK_END);
+    long unsigned int size = ftell(inFile);
+    fseek(inFile, 0, SEEK_SET);
+    u64 sizeRead = 0;
+    int percent = 0;
+    while ((bytes = fread (data, 1, bufSize, inFile)) != 0)
+    {
+      mbedtls_md5_update_ret (&md5Context, data, bytes);
+      sizeRead += bytes;
+      percent = sizeRead * 100 / size;
+      printf("\x1b[s\n%d/100\x1b[u", percent);
+      consoleUpdate(NULL);
+    }
+    mbedtls_md5_finish_ret (&md5Context, out);
+    fclose(inFile);
+    return;
+}
 
 bool isServiceRunning(const char *serviceName) {
   Handle handle;
@@ -182,6 +216,7 @@ int main(int argc, char **argv)
     bool done = false;
     bool exfat = false;
     std::string outPath = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
+    const int MD5_DIGEST_LENGTH = 16;
 
     while(appletMainLoop())
     {
@@ -197,15 +232,16 @@ int main(int argc, char **argv)
           {
             printf("\nStarted hash generation");
             consoleUpdate(NULL);
+            unsigned char out[MD5_DIGEST_LENGTH];
             u64 startTime = std::time(0);
             // Should I block home button here too?
             appletSetMediaPlaybackState(true);
-            hashwrapper *md5 = new md5wrapper();
-            std::string hash = md5->getHashFromFile(outPath);
-            delete md5;
+            md5HashFromFile(outPath, out);
             appletSetMediaPlaybackState(false);
             u64 endTime = std::time(0);
-            printf("\nmd5:%s\nHashing took %f minutes", hash.c_str(), (float)(endTime - startTime)/60);
+            printf("\nmd5:");
+            for(int i = 0; i < MD5_DIGEST_LENGTH; i++) printf("%02x", out[i]);
+            printf("\nHashing took %f minutes", (float)(endTime - startTime)/60);
           }
           else
           {
