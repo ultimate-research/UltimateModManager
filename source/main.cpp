@@ -18,7 +18,7 @@ void md5HashFromFile(std::string filename, unsigned char* out)
 
     if (inFile == NULL)
     {
-      printf ("File can't be opened.\n");
+      printf ("\nThe data.arc file can not be opened.");
       return;
     }
     mbedtls_md5_init (&md5Context);
@@ -92,14 +92,15 @@ void copy(const char* from, const char* to, bool exfat = false)
 
     if(runningTID() != smashTID)
     {
-      printf("\nYou must be currently overriding smash for this tool to work");
+      printf("\nYou must override Smash for this application to work properly.\nHold 'R' while launching Smash to do so.");
       return;
     }
     std::ifstream source(from, std::ifstream::binary);
     if(source.fail())
     {
-      printf("\ncould not open source file");
-      return;
+      printf ("\nThe data.arc file can not be opened.");
+	    printf ("\nCheck that the file exists in the proper directory");
+	    return;
     }
     source.seekg(0, std::ios::end);
     u64 size = source.tellg();
@@ -107,7 +108,7 @@ void copy(const char* from, const char* to, bool exfat = false)
 
     if(std::filesystem::space(to).available < size)
     {
-      printf("\nNot enough space on sd card.");
+      printf("\nNot enough storage space on the SD card.");
       return;
     }
     std::string folder(to);
@@ -120,7 +121,7 @@ void copy(const char* from, const char* to, bool exfat = false)
     std::ofstream dest(to, std::ofstream::binary);
     if(dest.fail())
     {
-      printf("\ncould not open destination file");
+      printf("\nCould not open the destination file.");
       return;
     }
 
@@ -130,7 +131,7 @@ void copy(const char* from, const char* to, bool exfat = false)
     //bool FSChecked = false;
 
     if(size == 0)
-      printf("\x1b[4;2HThere might be a problem with the data.arc file on your sd. Please manually Remove it.");
+      printf("\nThere might be a problem with the data.arc file on your SD card. Please remove the file manually.");
     while(sizeWritten < size)
     {
       if(sizeWritten + bufSize > size)
@@ -212,9 +213,9 @@ int main(int argc, char **argv)
 {
     consoleInit(NULL);
 
-    printf("\nData Arc Dumper");
-    printf("\nPress 'A' to dump as a split file.");
-    printf("\nPress 'B' to dump as a single file");
+    printf("\n\x1b[1;32mData Arc Dumper\x1b[0m");
+    printf("\n\nPress 'A' to dump as a split file (FAT32)");
+    printf("\nPress 'B' to dump as a single file (exFAT)");
     printf("\nPress 'X' to generate an MD5 hash of the file");
 
     bool done = false;
@@ -234,7 +235,7 @@ int main(int argc, char **argv)
         {
           if(fileExists(outPath))
           {
-            printf("\nStarted hash generation");
+            printf("\nBeginning hash generation...");
             consoleUpdate(NULL);
             unsigned char out[MD5_DIGEST_LENGTH];
             u64 startTime = std::time(0);
@@ -245,17 +246,17 @@ int main(int argc, char **argv)
             u64 endTime = std::time(0);
             printf("\nmd5:");
             for(int i = 0; i < MD5_DIGEST_LENGTH; i++) printf("%02x", out[i]);
-            printf("\nHashing took %f minutes", (float)(endTime - startTime)/60);
+            printf("\nHashing took %.2f minutes", (float)(endTime - startTime)/60);
           }
           else
           {
-            printf("\nNo data.arc found on sd.");
+            printf("\nNo data.arc file found on the SD card.");
           }
         }
         if (kDown & KEY_B && !done) exfat = true;
         if ((kDown & KEY_A || kDown & KEY_B) && !done)
         {
-          printf("\nStarted dumping");
+          printf("\nBeginning the dumping process...");
           consoleUpdate(NULL);
           u64 startTime = std::time(0);
           remove(outPath.c_str());
@@ -269,8 +270,8 @@ int main(int argc, char **argv)
           u64 endTime = std::time(0);
 
           done = true;  // So you don't accidentally dump twice
-          printf("\nDone in %f minutes", (float)(endTime - startTime)/60);
-          printf("\nPress 'X' generate an MD5 hash of the file");
+          printf("\nCompleted in %.2f minutes.", (float)(endTime - startTime)/60);
+          printf("\nOptional: Press 'X' generate an MD5 hash of the file");
         }
         consoleUpdate(NULL);
     }
