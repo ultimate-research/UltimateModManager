@@ -7,7 +7,7 @@
 
 #include <switch.h>
 #include "utils.h"
-//#include <mbedtls/md5.h>
+#include <mbedtls/md5.h>
 
 bool done = false;
 bool exfat = false;
@@ -16,35 +16,35 @@ const int MD5_DIGEST_LENGTH = 16;
 
 void md5HashFromFile(std::string filename, unsigned char* out)
 {
-    // FILE *inFile = fopen (filename.c_str(), "rb");
-    // mbedtls_md5_context md5Context;
-    // int bytes;
-    // u64 bufSize = 500000;
-    // unsigned char data[bufSize];
+    FILE *inFile = fopen (filename.c_str(), "rb");
+    mbedtls_md5_context md5Context;
+    int bytes;
+    u64 bufSize = 500000;
+    unsigned char data[bufSize];
 
-    // if (inFile == NULL)
-    // {
-    //   printf ("\nThe data.arc file can not be opened.");
-    //   return;
-    // }
-    // mbedtls_md5_init (&md5Context);
-    // mbedtls_md5_starts_ret(&md5Context);
+    if (inFile == NULL)
+    {
+      printf ("\nThe data.arc file can not be opened.");
+      return;
+    }
+    mbedtls_md5_init (&md5Context);
+    mbedtls_md5_starts_ret(&md5Context);
 
-    // fseek(inFile, 0, SEEK_END);
-    // long unsigned int size = ftell(inFile);
-    // fseek(inFile, 0, SEEK_SET);
-    // u64 sizeRead = 0;
-    // int percent = 0;
-    // while ((bytes = fread (data, 1, bufSize, inFile)) != 0)
-    // {
-    //   mbedtls_md5_update_ret (&md5Context, data, bytes);
-    //   sizeRead += bytes;
-    //   percent = sizeRead * 100 / size;
-    //   printf("\x1b[s\n%d/100\x1b[u", percent);
-    //   consoleUpdate(NULL);
-    // }
-    // mbedtls_md5_finish_ret (&md5Context, out);
-    // fclose(inFile);
+    fseek(inFile, 0, SEEK_END);
+    long unsigned int size = ftell(inFile);
+    fseek(inFile, 0, SEEK_SET);
+    u64 sizeRead = 0;
+    int percent = 0;
+    while ((bytes = fread (data, 1, bufSize, inFile)) != 0)
+    {
+      mbedtls_md5_update_ret (&md5Context, data, bytes);
+      sizeRead += bytes;
+      percent = sizeRead * 100 / size;
+      printf("\x1b[s\n%d/100\x1b[u", percent);
+      consoleUpdate(NULL);
+    }
+    mbedtls_md5_finish_ret (&md5Context, out);
+    fclose(inFile);
     return;
 }
 
