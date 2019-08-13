@@ -110,6 +110,10 @@ void copy(const char* from, const char* to, bool exfat = false)
       printf("\nNot enough space on sd card.");
       return;
     }
+    std::string folder(to);
+    folder = folder.substr(0, folder.find_last_of("/"));
+    if(!std::filesystem::exists(folder))
+      mkdir(folder.c_str(), 0744);
     if(!exfat)
       fsdevCreateFile(to, 0, FS_CREATE_BIG_FILE);
 
