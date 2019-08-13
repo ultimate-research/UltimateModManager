@@ -31,11 +31,11 @@ include $(DEVKITPRO)/libnx/switch_rules
 #     - <libnx folder>/default_icon.jpg
 #---------------------------------------------------------------------------------
 VERSION_MAJOR := 0
-VERSION_MINOR := 3
+VERSION_MINOR := 1
 VERSION_MICRO := 0
 
-APP_TITLE	:=	Data Arc Dumper
-APP_AUTHOR	:=	Genwald
+APP_TITLE	:=	Ultimate Mod Manager
+APP_AUTHOR	:=	Genwald, jugeeya
 APP_VERSION	:=	${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_MICRO}
 
 TARGET		:=	$(subst $e ,_,$(notdir $(APP_TITLE)))
@@ -65,7 +65,7 @@ CXXFLAGS	:= $(CFLAGS) -fno-rtti -std=c++17
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-no-as-needed,-Map,$(notdir $*.map)
 
-LIBS	:= -lnx -lstdc++fs -lmbedcrypto
+LIBS	:= -lnx -lstdc++fs # -lmbedcrypto
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
