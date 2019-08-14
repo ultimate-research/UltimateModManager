@@ -52,7 +52,6 @@ int load_mod(char* path, uint64_t offset, FILE* arc) {
             } while(size == FILE_READ_SIZE);
 
             free(copy_buffer);
-            printf("Installed file '%s' with 0x%lx bytes\n", path, total_size);
         }
 
         fclose(f);
@@ -94,7 +93,6 @@ int create_backup(char* mod_dir, char* filename, uint64_t offset, FILE* arc) {
             } while(size == FILE_READ_SIZE);
 
             free(copy_buffer);
-            printf("Created backup '%s' with 0x%lx bytes\n", backup_path, total_size);
         }
 
         fclose(backup);
@@ -148,6 +146,7 @@ uint64_t hex_to_u64(char* str) {
 
 char** mod_dirs = NULL;
 size_t num_mod_dirs = 0;
+bool installation_finish = false;
 
 void add_mod_dir(const char* path) {
     mod_dirs = (char**) realloc(mod_dirs, ++num_mod_dirs * sizeof(const char*));
@@ -166,12 +165,12 @@ int load_mods(FILE* f_arc) {
 
     remove_last_mod_dir();
 
-    char* tmp = (char*) (FILENAME_SIZE);
+    char* tmp = (char*) malloc(FILENAME_SIZE);
     DIR *d;
     struct dirent *dir;
     int hours, minutes, seconds;
 
-    printf("Searching mod dir '%s'...\n", mod_dir);
+    printf("Searching mod dir \x1b[1;33m%s\x1b[0m\n\n", mod_dir);
     consoleUpdate(NULL);
     
     snprintf(tmp, FILENAME_SIZE, "sdmc:/SaltySD/%s/", mod_dir);
@@ -189,35 +188,28 @@ int load_mods(FILE* f_arc) {
             } else {
                 uint64_t offset = hex_to_u64(dir->d_name);
                 if(offset){
-                    printf("Found file '%s', offset = %ld\n", dir->d_name, offset);
-                    consoleUpdate(NULL);
                     if (strcmp(mod_dir, "backups") == 0) {
                         current_time(&hours, &minutes, &seconds);
-                        printf("[%02d:%02d:%02d] About to install backup '%s'\n", hours, minutes, seconds, tmp);
-                        consoleUpdate(NULL);
                         snprintf(tmp, FILENAME_SIZE, "sdmc:/SaltySD/backups/%s", dir->d_name);
                         load_mod(tmp, offset, f_arc);
 
                         remove(tmp);
                         current_time(&hours, &minutes, &seconds);
-                        printf("[%02d:%02d:%02d] Installed backup '%s' into arc and deleted it\n", hours, minutes, seconds, tmp);
+                        printf("\x1b[1;34m%s\x1b[0m\n\n", dir->d_name);
                         consoleUpdate(NULL);
                     } else {
                         current_time(&hours, &minutes, &seconds);
-                        printf("[%02d:%02d:%02d] About to create backup '%s'\n", hours, minutes, seconds, dir->d_name);
                         consoleUpdate(NULL);
                         create_backup(mod_dir, dir->d_name, offset, f_arc);
 
                         snprintf(tmp, FILENAME_SIZE, "sdmc:/SaltySD/%s/%s", mod_dir, dir->d_name);
-                        printf("[%02d:%02d:%02d] About to install mod '%s/%s'\n", hours, minutes, seconds, mod_dir, dir->d_name);
-                        consoleUpdate(NULL);
                         load_mod(tmp, offset, f_arc);
                         current_time(&hours, &minutes, &seconds);
-                        printf("[%02d:%02d:%02d] Installed mod '%s' into arc\n", hours, minutes, seconds, tmp);
+                        printf("\x1b[1;32m%s/%s\x1b[0m\n\n", mod_dir, dir->d_name);
                         consoleUpdate(NULL);
                     }
                 } else {
-                    printf("Found file '%s', offset not parsable\n", dir->d_name);
+                    printf("\x1b[1;31mFound file '%s', offset not parsable\x1b[0m\n", dir->d_name);
                     consoleUpdate(NULL);
                 }
             }
@@ -235,32 +227,45 @@ int load_mods(FILE* f_arc) {
 
 void modInstallerMainLoop(int kDown)
 {
-    printf("BEGIN: SALTYSD MOD INSTALLER\n\n");
-    consoleUpdate(NULL);
+    if (!installation_finish) {
+        printf("BEGIN: SALTYSD MOD INSTALLER\n\n");
+        consoleUpdate(NULL);
 
-    FILE* f_arc = fopen("sdmc:/atmosphere/titles/01006A800016E000/romfs/data.arc", "r+b");
-    if(!f_arc){
-        printf("Failed to get file handle to data.arc\n");
-        goto end;
-    }
+        FILE* f_arc = fopen("sdmc:/atmosphere/titles/01006A800016E000/romfs/data.arc", "r+b");
+        if(!f_arc){
+            printf("Failed to get file handle to data.arc\n");
+            goto end;
+        }
 
-    // restore backups -> delete backups -> make backups for current mods -> install current mods
-    printf("Installing backups...\n\n");
-    add_mod_dir("backups");
-    consoleUpdate(NULL);
-    load_mods(f_arc);
-    
-    printf("Installing mods...\n\n");
-    add_mod_dir("mods");
-    while (num_mod_dirs > 0) {
+        // restore backups -> delete backups -> make backups for current mods -> install current mods
+        printf("Installing backups...\n\n");
+        add_mod_dir("backups");
         consoleUpdate(NULL);
         load_mods(f_arc);
+        
+        printf("Installing mods...\n\n");
+        add_mod_dir("mods");
+        consoleUpdate(NULL);
+        while (num_mod_dirs > 0) {
+            consoleUpdate(NULL);
+            load_mods(f_arc);
+        }
+
+        free(mod_dirs);
+
+        fclose(f_arc);
+
+    end:
+        printf("Mod Installer finished. Press B to return to the main menu.\n\n");
+        installation_finish = true;
+    } else {
+        if (kDown & KEY_B) {
+            menu = MAIN_MENU;
+            // clear screen and home cursor
+            printf( CONSOLE_ESC(2J) );
+            printf("\n\x1b[1;32mUltimate Mod Manager\x1b[0m");
+            printf("\n\nPress 'A' to go to the Mod Installer");
+            printf("\nPress 'X' to go to the Data Arc Dumper");
+        }
     }
-
-    free(mod_dirs);
-
-    fclose(f_arc);
-
-end:
-    printf("END: SALTYSD MOD INSTALLER\n\n");
 }

@@ -15,7 +15,10 @@ void mainMenuLoop(int kDown) {
 
         // clear screen and home cursor
         printf( CONSOLE_ESC(2J) );
-        printf("\n\x1b[1;32mMod Installer\x1b[0m");
+        printf("\n\x1b[1;32mMod Installer\x1b[0m\n");
+
+        if (installation_finish)
+            printf("Mod Installer already finished. Press B to return to the main menu.\n\n");
     }
 
     else if (kDown & KEY_X) {
@@ -45,17 +48,12 @@ int main(int argc, char **argv)
 
         if (kDown & KEY_PLUS) break; // break in order to return to hbmenu
 
-        switch (menu) {
-            case MAIN_MENU:
-                mainMenuLoop(kDown);
-                break;
-            case MOD_INSTALLER_MENU:
-                modInstallerMainLoop(kDown);
-                break;
-            case ARC_DUMPER_MENU:
-                dumperMainLoop(kDown);
-                break;
-        }
+        if (menu == MAIN_MENU)
+            mainMenuLoop(kDown);
+        else if (menu == MOD_INSTALLER_MENU)
+            modInstallerMainLoop(kDown);
+        else if (menu == ARC_DUMPER_MENU)
+            dumperMainLoop(kDown);
 
         consoleUpdate(NULL);
     }
