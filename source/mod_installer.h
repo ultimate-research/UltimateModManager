@@ -5,13 +5,13 @@
 #include "utils.h"
 
 #define FILENAME_SIZE 0x120
-#define FILE_READ_SIZE 0x5000
+#define FILE_READ_SIZE 0x20000
 
 void current_time(int* hours, int* minutes, int* seconds) {
-	time_t now;
-	time(&now);
+    time_t now;
+    time(&now);
 
-	struct tm *local = localtime(&now);
+    struct tm *local = localtime(&now);
     *hours = local->tm_hour;
     *minutes = local->tm_min;
     *seconds = local->tm_sec;
@@ -147,6 +147,7 @@ uint64_t hex_to_u64(char* str) {
 char** mod_dirs = NULL;
 size_t num_mod_dirs = 0;
 bool installation_finish = false;
+size_t mod_folder_index = 0;
 
 void add_mod_dir(const char* path) {
     mod_dirs = (char**) realloc(mod_dirs, ++num_mod_dirs * sizeof(const char*));
@@ -170,7 +171,7 @@ int load_mods(FILE* f_arc) {
     struct dirent *dir;
     int hours, minutes, seconds;
 
-    printf("Searching mod dir \x1b[1;33m%s\x1b[0m\n\n", mod_dir);
+    printf("Searching mod dir %s%s%s\n\n", CONSOLE_YELLOW, mod_dir, CONSOLE_RESET);
     consoleUpdate(NULL);
     
     snprintf(tmp, FILENAME_SIZE, "sdmc:/SaltySD/%s/", mod_dir);
@@ -195,7 +196,7 @@ int load_mods(FILE* f_arc) {
 
                         remove(tmp);
                         current_time(&hours, &minutes, &seconds);
-                        printf("\x1b[1;34m%s\x1b[0m\n\n", dir->d_name);
+                        printf("%s%s%s\n\n", CONSOLE_BLUE, dir->d_name, CONSOLE_RESET);
                         consoleUpdate(NULL);
                     } else {
                         current_time(&hours, &minutes, &seconds);
@@ -205,11 +206,11 @@ int load_mods(FILE* f_arc) {
                         snprintf(tmp, FILENAME_SIZE, "sdmc:/SaltySD/%s/%s", mod_dir, dir->d_name);
                         load_mod(tmp, offset, f_arc);
                         current_time(&hours, &minutes, &seconds);
-                        printf("\x1b[1;32m%s/%s\x1b[0m\n\n", mod_dir, dir->d_name);
+                        printf("%s%s/%s%s\n\n", CONSOLE_GREEN, mod_dir, dir->d_name, CONSOLE_RESET);
                         consoleUpdate(NULL);
                     }
                 } else {
-                    printf("\x1b[1;31mFound file '%s', offset not parsable\x1b[0m\n", dir->d_name);
+                    printf("%sFound file '%s', offset not parsable%s\n", CONSOLE_RED, dir->d_name, CONSOLE_RESET);
                     consoleUpdate(NULL);
                 }
             }
@@ -225,47 +226,88 @@ int load_mods(FILE* f_arc) {
     return 0;
 }
 
+void perform_installation() {
+    FILE* f_arc = fopen("sdmc:/atmosphere/titles/01006A800016E000/romfs/data.arc", "r+b");
+    if(!f_arc){
+        printf("Failed to get file handle to data.arc\n");
+        goto end;
+    }
+
+    // restore backups -> delete backups -> make backups for current mods -> install current mods
+    printf("Installing backups...\n\n");
+    add_mod_dir("backups");
+    consoleUpdate(NULL);
+    load_mods(f_arc);
+    
+    printf("Installing mods...\n\n");
+    add_mod_dir("mods");
+    consoleUpdate(NULL);
+    while (num_mod_dirs > 0) {
+        consoleUpdate(NULL);
+        load_mods(f_arc);
+    }
+
+    free(mod_dirs);
+
+    fclose(f_arc);
+
+end:
+    printf("Mod Installer finished. Press B to return to the main menu.\n\n");
+}
+
 void modInstallerMainLoop(int kDown)
 {
     if (!installation_finish) {
-        printf("BEGIN: SALTYSD MOD INSTALLER\n\n");
-        consoleUpdate(NULL);
+        if (kDown & KEY_DOWN)
+            mod_folder_index++;
+        else if (kDown & KEY_UP)
+            mod_folder_index--;
 
-        FILE* f_arc = fopen("sdmc:/atmosphere/titles/01006A800016E000/romfs/data.arc", "r+b");
-        if(!f_arc){
-            printf("Failed to get file handle to data.arc\n");
-            goto end;
-        }
+        if (mod_folder_index < 0)
+            mod_folder_index = 0;
 
-        // restore backups -> delete backups -> make backups for current mods -> install current mods
-        printf("Installing backups...\n\n");
-        add_mod_dir("backups");
+        consoleClear();
+        printf("Please select a mods folder below to install.\n\n");
         consoleUpdate(NULL);
-        load_mods(f_arc);
         
-        printf("Installing mods...\n\n");
-        add_mod_dir("mods");
-        consoleUpdate(NULL);
-        while (num_mod_dirs > 0) {
+        const char* mods_root = "sdmc:/UltimateModManager/mods/";
+        DIR* d = opendir(mods_root);
+        struct dirent *dir;
+        if (d)
+        {
+            size_t curr_folder_index = 0;
+            dir = readdir(d);
+            while (dir != NULL)
+            {
+                if(dir->d_type == DT_DIR) {
+                    if (strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0)
+                        continue;
+                    char* tmp = (char*) malloc(FILENAME_SIZE);
+                    snprintf(tmp, FILENAME_SIZE, "%s/%s", mods_root, dir->d_name);
+
+                    dir = readdir(d);
+                    if (dir == NULL)
+                        mod_folder_index = curr_folder_index;
+                    if (curr_folder_index == mod_folder_index)
+                        printf("> ");
+                    printf("%s\n", tmp);
+                    free(tmp);
+                    curr_folder_index++;
+                } else {
+                    dir = readdir(d);
+                }
+            }
+
             consoleUpdate(NULL);
-            load_mods(f_arc);
+            closedir(d);
         }
 
-        free(mod_dirs);
-
-        fclose(f_arc);
-
-    end:
-        printf("Mod Installer finished. Press B to return to the main menu.\n\n");
+        perform_installation();
         installation_finish = true;
     } else {
         if (kDown & KEY_B) {
             menu = MAIN_MENU;
-            // clear screen and home cursor
-            printf( CONSOLE_ESC(2J) );
-            printf("\n\x1b[1;32mUltimate Mod Manager\x1b[0m");
-            printf("\n\nPress 'A' to go to the Mod Installer");
-            printf("\nPress 'X' to go to the Data Arc Dumper");
+            printMainMenu();
         }
     }
 }

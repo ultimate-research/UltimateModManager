@@ -8,6 +8,13 @@
 
 int menu = MAIN_MENU;
 
+void printMainMenu() {
+    consoleClear();
+    printf("\n\x1b[1;32mUltimate Mod Manager\x1b[0m");
+    printf("\n\nPress 'A' to go to the Mod Installer");
+    printf("\nPress 'X' to go to the Data Arc Dumper");
+}
+
 bool isServiceRunning(const char *serviceName) {
   Handle handle;
   bool running = R_FAILED(smRegisterService(&handle, serviceName, false, 1));

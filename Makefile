@@ -35,7 +35,7 @@ VERSION_MINOR := 1
 VERSION_MICRO := 0
 
 APP_TITLE	:=	Ultimate Mod Manager
-APP_AUTHOR	:=	Genwald, jugeeya
+APP_AUTHOR	:=	Genwald, jugeeya, mtheall
 APP_VERSION	:=	${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_MICRO}
 
 TARGET		:=	$(subst $e ,_,$(notdir $(APP_TITLE)))
@@ -58,7 +58,7 @@ CFLAGS	:=	-g -Wall -O3 -ffunction-sections \
 			-DVERSION_MINOR=${VERSION_MINOR} \
 			-DVERSION_MICRO=${VERSION_MICRO}
 
-CFLAGS	+=	$(INCLUDE) -D__SWITCH__
+CFLAGS	+=	$(INCLUDE) -D__SWITCH__ -DSTATUS_STRING="\"ftpd v$(VERSION)\""
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -std=c++17
 

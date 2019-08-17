@@ -13,8 +13,7 @@ void mainMenuLoop(int kDown) {
     if (kDown & KEY_A) {
         menu = MOD_INSTALLER_MENU;
 
-        // clear screen and home cursor
-        printf( CONSOLE_ESC(2J) );
+        consoleClear();
         printf("\n\x1b[1;32mMod Installer\x1b[0m\n");
 
         if (installation_finish)
@@ -24,8 +23,7 @@ void mainMenuLoop(int kDown) {
     else if (kDown & KEY_X) {
         menu = ARC_DUMPER_MENU;
 
-        // clear screen and home cursor
-        printf( CONSOLE_ESC(2J) );
+        consoleClear();
         printf("\n\x1b[1;32mData Arc Dumper\x1b[0m");
         printf("\n\nPress 'A' to dump as a split file (FAT32)");
         printf("\nPress 'B' to dump as a single file (exFAT)");
@@ -36,9 +34,7 @@ void mainMenuLoop(int kDown) {
 int main(int argc, char **argv)
 {
     consoleInit(NULL);
-    printf("\n\x1b[1;32mUltimate Mod Manager\x1b[0m");
-    printf("\n\nPress 'A' to go to the Mod Installer");
-    printf("\nPress 'X' to go to the Data Arc Dumper");
+    printMainMenu();
 
     while(appletMainLoop())
     {
