@@ -10,7 +10,7 @@
 #include "mod_installer.h"
 
 void mainMenuLoop(int kDown) {
-    if (kDown & KEY_A) {
+    if (kDown & KEY_Y) {
         menu = MOD_INSTALLER_MENU;
 
         consoleClear();
