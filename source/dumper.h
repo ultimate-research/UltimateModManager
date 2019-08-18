@@ -73,8 +73,7 @@ void copy(const char* from, const char* to, bool exfat = false)
     std::ifstream source(from, std::ifstream::binary);
     if(source.fail())
     {
-      printf ("\nThe data.arc file can not be opened.");
-	    printf ("\nCheck that the file exists in the proper directory");
+      printf ("\nThe romfs could not be read.");
 	    return;
     }
     source.seekg(0, std::ios::end);
