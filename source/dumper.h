@@ -64,6 +64,12 @@ void copy(const char* from, const char* to, bool exfat = false)
       printf("\nYou must override Smash for this application to work properly.\nHold 'R' while launching Smash to do so.");
       return;
     }
+    AppletType at = appletGetAppletType();
+    if (at != AppletType_Application && at != AppletType_SystemApplication)
+    {
+      printf("\nNo applet mode.\nYou must override Smash for this application to work properly.\nHold 'R' while launching Smash to do so.");
+      return;
+    }
     std::ifstream source(from, std::ifstream::binary);
     if(source.fail())
     {
