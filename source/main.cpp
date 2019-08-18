@@ -27,8 +27,9 @@ void mainMenuLoop(int kDown) {
         consoleClear();
         printf("\n\x1b[1;32mData Arc Dumper\x1b[0m");
         printf("\n\nPress 'A' to dump as a split file (FAT32)");
-        printf("\nPress 'B' to dump as a single file (exFAT)");
+        printf("\nPress 'Y' to dump as a single file (exFAT)");
         printf("\nPress 'X' to generate an MD5 hash of the file");
+        printf("\nPress 'B' to return to the main menu");
     }
 }
 

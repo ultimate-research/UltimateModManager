@@ -210,8 +210,8 @@ void dumperMainLoop(int kDown) {
         printf("\nNo data.arc file found on the SD card.");
         }
     }
-    if (kDown & KEY_B && !done) exfat = true;
-    if ((kDown & KEY_A || kDown & KEY_B) && !done)
+    if (kDown & KEY_Y && !done) exfat = true;
+    if ((kDown & KEY_A || kDown & KEY_Y) && !done)
     {
         printf("\nBeginning the dumping process...");
         consoleUpdate(NULL);
@@ -229,5 +229,9 @@ void dumperMainLoop(int kDown) {
         done = true;  // So you don't accidentally dump twice
         printf("\nCompleted in %.2f minutes.", (float)(endTime - startTime)/60);
         printf("\nOptional: Press 'X' generate an MD5 hash of the file");
+    }
+    if (kDown & KEY_B) {
+        menu = MAIN_MENU;
+        printMainMenu();
     }
 }
