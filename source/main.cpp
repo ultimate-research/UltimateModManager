@@ -11,6 +11,7 @@
 
 void mainMenuLoop(int kDown) {
     if (kDown & KEY_Y) {
+        installation_finish = false;
         menu = MOD_INSTALLER_MENU;
 
         consoleClear();

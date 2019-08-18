@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include "utils.h"
 
-#define FILENAME_SIZE 0x120
+#define FILENAME_SIZE 0x130
 #define FILE_READ_SIZE 0x20000
 
 void current_time(int* hours, int* minutes, int* seconds) {
@@ -66,8 +66,8 @@ int load_mod(char* path, uint64_t offset, FILE* arc) {
 int create_backup(char* mod_dir, char* filename, uint64_t offset, FILE* arc) {
     char* backup_path = (char*) malloc(FILENAME_SIZE);
     char* mod_path = (char*) malloc(FILENAME_SIZE);
-    snprintf(backup_path, FILENAME_SIZE, "sdmc:/SaltySD/backups/0x%lx.backup", offset);
-    snprintf(mod_path, FILENAME_SIZE, "sdmc:/SaltySD/%s/%s", mod_dir, filename);
+    snprintf(backup_path, FILENAME_SIZE, "sdmc:/UltimateModManager/backups/0x%lx.backup", offset);
+    snprintf(mod_path, FILENAME_SIZE, "sdmc:/UltimateModManager/%s/%s", mod_dir, filename);
 
     FILE* backup = fopen(backup_path, "wb");
     FILE* mod = fopen(mod_path, "rb");
@@ -174,7 +174,7 @@ int load_mods(FILE* f_arc) {
     printf("Searching mod dir %s%s%s\n\n", CONSOLE_YELLOW, mod_dir, CONSOLE_RESET);
     consoleUpdate(NULL);
     
-    snprintf(tmp, FILENAME_SIZE, "sdmc:/SaltySD/%s/", mod_dir);
+    snprintf(tmp, FILENAME_SIZE, "sdmc:/UltimateModManager/%s/", mod_dir);
 
     d = opendir(tmp);
     if (d)
@@ -191,7 +191,7 @@ int load_mods(FILE* f_arc) {
                 if(offset){
                     if (strcmp(mod_dir, "backups") == 0) {
                         current_time(&hours, &minutes, &seconds);
-                        snprintf(tmp, FILENAME_SIZE, "sdmc:/SaltySD/backups/%s", dir->d_name);
+                        snprintf(tmp, FILENAME_SIZE, "sdmc:/UltimateModManager/backups/%s", dir->d_name);
                         load_mod(tmp, offset, f_arc);
 
                         remove(tmp);
@@ -203,7 +203,7 @@ int load_mods(FILE* f_arc) {
                         consoleUpdate(NULL);
                         create_backup(mod_dir, dir->d_name, offset, f_arc);
 
-                        snprintf(tmp, FILENAME_SIZE, "sdmc:/SaltySD/%s/%s", mod_dir, dir->d_name);
+                        snprintf(tmp, FILENAME_SIZE, "sdmc:/UltimateModManager/%s/%s", mod_dir, dir->d_name);
                         load_mod(tmp, offset, f_arc);
                         current_time(&hours, &minutes, &seconds);
                         printf("%s%s/%s%s\n\n", CONSOLE_GREEN, mod_dir, dir->d_name, CONSOLE_RESET);
@@ -232,13 +232,8 @@ void perform_installation() {
         printf("Failed to get file handle to data.arc\n");
         goto end;
     }
-
-    // restore backups -> delete backups -> make backups for current mods -> install current mods
-    printf("Installing backups...\n\n");
-    consoleUpdate(NULL);
-    load_mods(f_arc);
-    
-    printf("Installing mods...\n\n");
+ 
+    printf("\nInstalling mods...\n\n");
     consoleUpdate(NULL);
     while (num_mod_dirs > 0) {
         consoleUpdate(NULL);
@@ -255,54 +250,80 @@ end:
 
 void modInstallerMainLoop(int kDown)
 {
-    consoleClear();
-    if (kDown & KEY_DDOWN || kDown & KEY_LSTICK_DOWN)
-        mod_folder_index++;
-    else if (kDown & KEY_DUP || kDown & KEY_LSTICK_UP)
-        mod_folder_index--;
+    if (!installation_finish) {
+        consoleClear();
+        if (kDown & KEY_DDOWN || kDown & KEY_LSTICK_DOWN)
+            mod_folder_index++;
+        else if (kDown & KEY_DUP || kDown & KEY_LSTICK_UP)
+            mod_folder_index--;
 
-    if (mod_folder_index < 0)
-        mod_folder_index = 0;
+        if (mod_folder_index < 0)
+            mod_folder_index = 0;
 
-    bool start_install = false;
-    if (kDown & KEY_A)
-        start_install = true;
-    bool found_dir = false;
+        bool start_install = false;
+        if (kDown & KEY_A)
+            start_install = true;
+        bool found_dir = false;
 
-    printf("Please select a mods folder below to install.\n\n");
-    
-    const char* mods_root = "sdmc:/UltimateModManager/mods";
-    DIR* d = opendir(mods_root);
-    struct dirent *dir;
-    if (d) {
-        size_t curr_folder_index = 0;
-        while ((dir = readdir(d)) != NULL) {
-            if(dir->d_type == DT_DIR) {
-                if (strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0)
-                    continue;
-                char* tmp = (char*) malloc(FILENAME_SIZE);
-                snprintf(tmp, FILENAME_SIZE, "%s/%s", mods_root, dir->d_name);
+        printf("Please select a mods folder below to install.\n\n");
+        
+        const char* mods_root = "sdmc:/UltimateModManager/mods";
+        DIR* d = opendir(mods_root);
+        struct dirent *dir;
+        if (d) {
+            size_t curr_folder_index = 0;
+            bool select_backups = false;
+            while ((dir = readdir(d)) != NULL || !select_backups) {
+                if (dir == NULL) {
+                    select_backups = true;
+                    if (mod_folder_index > curr_folder_index)
+                        mod_folder_index = curr_folder_index;
 
-                if (curr_folder_index == mod_folder_index) {
-                    printf("> ");
-                    if (start_install) {
-                        found_dir = true;
-                        //add_mod_dir("backups");
-                        add_mod_dir(tmp);
+                    if (mod_folder_index == curr_folder_index) {
+                        mod_folder_index = curr_folder_index;
+                        printf("%s> ", CONSOLE_GREEN);
+                        if (start_install) {
+                            found_dir = true;
+                            add_mod_dir("backups");
+                        }
                     }
+
+                    printf("backups\n");
+
+                    if (mod_folder_index == curr_folder_index)
+                        printf(CONSOLE_RESET);
+                } else if(dir->d_type == DT_DIR) {
+                    if (strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0)
+                        continue;
+                    char* tmp = (char*) malloc(FILENAME_SIZE);
+                    snprintf(tmp, FILENAME_SIZE, "mods/%s", dir->d_name);
+
+                    if (curr_folder_index == mod_folder_index) {
+                        printf("%s> ", CONSOLE_GREEN);
+                        if (start_install) {
+                            found_dir = true;
+                            add_mod_dir(tmp);
+                        }
+                    }
+                    printf("%s\n", dir->d_name);
+                    if (curr_folder_index == mod_folder_index)
+                        printf(CONSOLE_RESET);
+                    free(tmp);
+                    curr_folder_index++;
                 }
-                printf("%s\n", dir->d_name);
-                free(tmp);
-                curr_folder_index++;
             }
+
+            closedir(d);
         }
 
-        closedir(d);
+        consoleUpdate(NULL);
+        if (start_install && found_dir) {
+            perform_installation();
+            installation_finish = true;
+            mod_dirs = NULL;
+            num_mod_dirs = 0;
+        }
     }
-
-    consoleUpdate(NULL);
-    if (start_install && found_dir)
-        perform_installation();
 
     if (kDown & KEY_B) {
         menu = MAIN_MENU;
