@@ -330,7 +330,7 @@ void modInstallerMainLoop(int kDown)
         menu = MAIN_MENU;
         printMainMenu();
     }
-		if(kDown & KEY_X) {
-			appletRequestLaunchApplication(0x01006A800016E000, NULL);
-		}
+    if(kDown & KEY_X) {
+        appletRequestLaunchApplication(0x01006A800016E000, NULL);
+    }
 }
