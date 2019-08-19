@@ -31,7 +31,7 @@ void md5HashFromFile(std::string filename, unsigned char* out)
     mbedtls_md5_starts_ret(&md5Context);
 
     fseek(inFile, 0, SEEK_END);
-    long unsigned int size = ftell(inFile);
+    u64 size = ftell(inFile);
     fseek(inFile, 0, SEEK_SET);
     u64 sizeRead = 0;
     int percent = 0;
@@ -54,9 +54,6 @@ void copy(const char* from, const char* to, bool exfat = false)
     //const u64 fat32Max = 0xFFFFFFFF;
     //const u64 splitSize = 0xFFFF0000;
     const u64 smashTID = 0x01006A800016E000;
-    // Smaller or larger might give better performance. IDK
-    //u64 bufSize = 0x1FFFE000;
-    //u64 bufSize = 0x8000000;
     u64 bufSize = 0x0F0F0F0F;
 
     if(runningTID() != smashTID)
@@ -72,20 +69,22 @@ void copy(const char* from, const char* to, bool exfat = false)
     }
     remove(outPath.c_str());
     romfsMountFromCurrentProcess("romfs");
-    std::ifstream source(from, std::ifstream::binary);
-    if(source.fail())
+    FILE* source = fopen(from, "rb");
+    if(source == nullptr)
     {
       printf ("\nThe romfs could not be read.");
+      fclose(source);
       romfsUnmount("romfs");
 	    return;
     }
-    source.seekg(0, std::ios::end);
-    u64 size = source.tellg();
-    source.seekg(0);
+    fseek(source, 0, SEEK_END);
+    u64 size = ftell(source);
+    fseek(source, 0, SEEK_SET);
 
     if(std::filesystem::space(to).available < size)
     {
       printf("\nNot enough storage space on the SD card.");
+      fclose(source);
       romfsUnmount("romfs");
       return;
     }
@@ -100,10 +99,12 @@ void copy(const char* from, const char* to, bool exfat = false)
     if(!exfat)
       fsdevCreateFile(to, 0, FS_CREATE_BIG_FILE);
 
-    std::ofstream dest(to, std::ofstream::binary);
-    if(dest.fail())
+    FILE* dest = fopen(to, "wb");
+    if(dest == nullptr)
     {
       printf("\nCould not open the destination file.");
+      fclose(dest);
+      fclose(source);
       romfsUnmount("romfs");
       return;
     }
@@ -111,7 +112,7 @@ void copy(const char* from, const char* to, bool exfat = false)
     char* buf = new char[bufSize];
     u64 sizeWritten = 0;
     int percent = 0;
-    //bool FSChecked = false;
+    size_t ret;
 
     if(size == 0)
       printf("\nThere might be a problem with the data.arc file on your SD card. Please remove the file manually.");
@@ -171,14 +172,13 @@ void copy(const char* from, const char* to, bool exfat = false)
         FSChecked = true;
       }
       */
-      //dest.seekp(source.tellg());
-      //dest.seekp(0, std::ios::end);
-
-      source.read(buf, bufSize);
-      dest.write(buf, bufSize);
-      if(dest.bad())
+      fread(buf, sizeof(char), bufSize, source);
+      ret = fwrite(buf, sizeof(char), bufSize, dest);
+      if(ret != bufSize)
       {
         printf("\nSomething went wrong!");
+        fclose(dest);
+        fclose(source);
         romfsUnmount("romfs");
         return;
       }
@@ -189,6 +189,8 @@ void copy(const char* from, const char* to, bool exfat = false)
       //printf("\x1b[22;2H%lu/%lu", sizeWritten, size);  // Debug log
       consoleUpdate(NULL);
     }
+    fclose(source);
+    fclose(dest);
     delete[] buf;
     romfsUnmount("romfs");
     //printf("\n");
@@ -197,7 +199,7 @@ void copy(const char* from, const char* to, bool exfat = false)
 void dumperMainLoop(int kDown) {
     if (kDown & KEY_X)
     {
-        if(fileExists(outPath))
+        if(std::filesystem::exists(outPath))
         {
         printf("\nBeginning hash generation...");
         consoleUpdate(NULL);
