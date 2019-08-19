@@ -240,8 +240,4 @@ void dumperMainLoop(int kDown) {
         menu = MAIN_MENU;
         printMainMenu();
     }
-    if (kDown & KEY_B) {
-        menu = MAIN_MENU;
-        printMainMenu();
-    }
 }
