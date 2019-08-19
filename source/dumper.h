@@ -73,6 +73,7 @@ void copy(const char* from, const char* to, bool exfat = false)
     if(source == nullptr)
     {
       printf ("\nThe romfs could not be read.");
+      fclose(source);
       romfsUnmount("romfs");
 	    return;
     }
@@ -83,6 +84,7 @@ void copy(const char* from, const char* to, bool exfat = false)
     if(std::filesystem::space(to).available < size)
     {
       printf("\nNot enough storage space on the SD card.");
+      fclose(source);
       romfsUnmount("romfs");
       return;
     }
@@ -101,6 +103,8 @@ void copy(const char* from, const char* to, bool exfat = false)
     if(dest == nullptr)
     {
       printf("\nCould not open the destination file.");
+      fclose(dest);
+      fclose(source);
       romfsUnmount("romfs");
       return;
     }
@@ -173,6 +177,8 @@ void copy(const char* from, const char* to, bool exfat = false)
       if(ret != bufSize)
       {
         printf("\nSomething went wrong!");
+        fclose(dest);
+        fclose(source);
         romfsUnmount("romfs");
         return;
       }
