@@ -30,6 +30,7 @@ void mainMenuLoop(int kDown) {
         printf("\n\nPress 'A' to dump as a split file (FAT32)");
         printf("\nPress 'Y' to dump as a single file (exFAT)");
         printf("\nPress 'X' to generate an MD5 hash of the file");
+        printf("\nPress 'B' to return to the main menu");
     }
 }
 

@@ -64,11 +64,16 @@ void copy(const char* from, const char* to, bool exfat = false)
       printf("\nYou must override Smash for this application to work properly.\nHold 'R' while launching Smash to do so.");
       return;
     }
+    AppletType at = appletGetAppletType();
+    if (at != AppletType_Application && at != AppletType_SystemApplication)
+    {
+      printf("\nNo applet mode.\nYou must override Smash for this application to work properly.\nHold 'R' while launching Smash to do so.");
+      return;
+    }
     std::ifstream source(from, std::ifstream::binary);
     if(source.fail())
     {
-      printf ("\nThe data.arc file can not be opened.");
-	    printf ("\nCheck that the file exists in the proper directory");
+      printf ("\nThe romfs could not be read.");
 	    return;
     }
     source.seekg(0, std::ios::end);
@@ -227,6 +232,10 @@ void dumperMainLoop(int kDown) {
         printf("\nPress B to return to the main menu.\n");
     }
 
+    if (kDown & KEY_B) {
+        menu = MAIN_MENU;
+        printMainMenu();
+    }
     if (kDown & KEY_B) {
         menu = MAIN_MENU;
         printMainMenu();
