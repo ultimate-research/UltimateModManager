@@ -8,6 +8,15 @@
 #define FILENAME_SIZE 0x130
 #define FILE_READ_SIZE 0x20000
 
+char** mod_dirs = NULL;
+size_t num_mod_dirs = 0;
+bool installation_finish = false;
+size_t mod_folder_index = 0;
+
+const char* manager_root = "sdmc:/UltimateModManager/";
+const char* mods_root = "sdmc:/UltimateModManager/mods/";
+const char* backups_root = "sdmc:/UltimateModManager/backups/";
+
 int seek_files(FILE* f, uint64_t offset, FILE* arc) {
     // Set file pointers to start of file and offset respectively
     int ret = fseek(f, 0, SEEK_SET);
@@ -57,8 +66,8 @@ int load_mod(const char* path, uint64_t offset, FILE* arc) {
 int create_backup(const char* mod_dir, char* filename, uint64_t offset, FILE* arc) {
     char* backup_path = (char*) malloc(FILENAME_SIZE);
     char* mod_path = (char*) malloc(FILENAME_SIZE);
-    snprintf(backup_path, FILENAME_SIZE, "sdmc:/UltimateModManager/backups/0x%lx.backup", offset);
-    snprintf(mod_path, FILENAME_SIZE, "sdmc:/UltimateModManager/%s/%s", mod_dir, filename);
+    snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
+    snprintf(mod_path, FILENAME_SIZE, "%s%s/%s", manager_root, mod_dir, filename);
 
     if (fileExists(std::string(backup_path))) {
         printf(CONSOLE_BLUE "Backup file 0x%lx.backup already exists\n" CONSOLE_RESET, offset);
@@ -142,11 +151,6 @@ uint64_t hex_to_u64(char* str) {
     return value;
 }
 
-char** mod_dirs = NULL;
-size_t num_mod_dirs = 0;
-bool installation_finish = false;
-size_t mod_folder_index = 0;
-
 void add_mod_dir(const char* path) {
     mod_dirs = (char**) realloc(mod_dirs, ++num_mod_dirs * sizeof(const char*));
     mod_dirs[num_mod_dirs-1] = (char*) malloc(FILENAME_SIZE * sizeof(char));
@@ -169,7 +173,7 @@ int load_mods(FILE* f_arc) {
     printf("Searching mod dir " CONSOLE_YELLOW "%s\n\n" CONSOLE_RESET, mod_dir.c_str());
     consoleUpdate(NULL);
 
-    std::string abs_mod_dir = "sdmc:/UltimateModManager/" + mod_dir;
+    std::string abs_mod_dir = std::string(manager_root) + mod_dir;
     d = opendir(abs_mod_dir.c_str());
     if (d)
     {
@@ -184,17 +188,17 @@ int load_mods(FILE* f_arc) {
                 uint64_t offset = hex_to_u64(dir->d_name);
                 if(offset){
                     if (mod_dir == "backups") {
-                        std::string backup_file = "sdmc:/UltimateModManager/backups/" + std::string(dir->d_name);
+                        std::string backup_file = std::string(backups_root) + std::string(dir->d_name);
                         load_mod(backup_file.c_str(), offset, f_arc);
 
                         remove(backup_file.c_str());
-                        printf("%s%s%s\n\n", CONSOLE_BLUE, dir->d_name, CONSOLE_RESET);
+                        printf(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, dir->d_name);
                         consoleUpdate(NULL);
                     } else {
                         consoleUpdate(NULL);
                         create_backup(mod_dir.c_str(), dir->d_name, offset, f_arc);
 
-                        std::string mod_file = "sdmc:/UltimateModManager/" + mod_dir + "/" + dir->d_name;
+                        std::string mod_file = std::string(manager_root) + mod_dir + "/" + dir->d_name;
                         load_mod(mod_file.c_str(), offset, f_arc);
                         printf(CONSOLE_GREEN "%s/%s\n\n" CONSOLE_RESET, mod_dir.c_str(), dir->d_name);
                         consoleUpdate(NULL);
@@ -207,7 +211,7 @@ int load_mods(FILE* f_arc) {
         }
         closedir(d);
     } else {
-        printf("Failed to open mod directory '%s'\n", mod_dir.c_str());
+        printf(CONSOLE_RED "Failed to open mod directory '%s'\n" CONSOLE_RESET, abs_mod_dir.c_str());
         consoleUpdate(NULL);
     }
 
@@ -235,7 +239,7 @@ void perform_installation() {
 
 end:
     printf("Mod Installer finished.\nPress B to return to the main menu.\n");
-		printf("Press X launch Smash\n\n");
+	printf("Press X to launch Smash\n\n");
 }
 
 void modInstallerMainLoop(int kDown)
@@ -257,7 +261,6 @@ void modInstallerMainLoop(int kDown)
 
         printf("Please select a mods folder below to install.\n\n");
         
-        const char* mods_root = "sdmc:/UltimateModManager/mods";
         DIR* d = opendir(mods_root);
         struct dirent *dir;
         if (d) {
@@ -288,7 +291,7 @@ void modInstallerMainLoop(int kDown)
 
             if (mod_folder_index == curr_folder_index) {
                 mod_folder_index = curr_folder_index;
-                printf("%s> ", CONSOLE_GREEN);
+                printf(CONSOLE_GREEN "> ");
                 if (start_install) {
                     found_dir = true;
                     add_mod_dir("backups");
@@ -302,12 +305,12 @@ void modInstallerMainLoop(int kDown)
 
             closedir(d);
         } else {
-            printf(CONSOLE_RED "sdmc:/UltimateModManager/mods folder not found\n\n" CONSOLE_RESET);
+            printf(CONSOLE_RED "%s folder not found\n\n" CONSOLE_RESET, mods_root);
         }
 
         consoleUpdate(NULL);
         if (start_install && found_dir) {
-            mkdir("sdmc:/UltimateModManager/backups", 0777);
+            mkdir(backups_root, 0777);
             perform_installation();
             installation_finish = true;
             mod_dirs = NULL;
