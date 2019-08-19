@@ -35,7 +35,7 @@ VERSION_MINOR := 1
 VERSION_MICRO := 0
 
 APP_TITLE	:=	Ultimate Mod Manager
-APP_AUTHOR	:=	Genwald, jugeeya, mtheall
+APP_AUTHOR	:=	Genwald, jugeeya, jam1garner
 APP_VERSION	:=	${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_MICRO}
 ICON 	:= icon.jpg
 
