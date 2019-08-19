@@ -16,10 +16,10 @@ bool isServiceRunning(const char *serviceName) {
 
 std::string getCFW()
 {
+  if (isServiceRunning("rnx"))
+    return "ReiNX";
   if (isServiceRunning("tx"))
     return "sxos";
-  else if (isServiceRunning("rnx"))
-    return "reinx";
   return "atmosphere";
 }
 
