@@ -1,19 +1,6 @@
 #pragma once
 #include <filesystem>
-#include <switch.h>
-
-#define MAIN_MENU 0
-#define MOD_INSTALLER_MENU 1
-#define ARC_DUMPER_MENU 2
-
-int menu = MAIN_MENU;
-
-void printMainMenu() {
-    consoleClear();
-    printf(CONSOLE_GREEN "\nUltimate Mod Manager" CONSOLE_RESET);
-    printf("\n\nPress 'Y' to go to the Mod Installer");
-    printf("\nPress 'X' to go to the Data Arc Dumper");
-}
+#include "menu.h"
 
 bool isServiceRunning(const char *serviceName) {
   Handle handle;

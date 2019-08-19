@@ -1,6 +1,5 @@
 #include <string.h>
 #include <stdio.h>
-#include <fstream>
 #include <sys/stat.h>
 #include <filesystem>
 #include <ctime>
@@ -8,6 +7,10 @@
 #include <switch.h>
 #include "dumper.h"
 #include "mod_installer.h"
+extern "C" {
+#include "ftp_main.h"
+#include "console.h"
+}
 
 void mainMenuLoop(int kDown) {
     if (kDown & KEY_Y) {
@@ -15,7 +18,7 @@ void mainMenuLoop(int kDown) {
         menu = MOD_INSTALLER_MENU;
 
         consoleClear();
-        printf(CONSOLE_GREEN "Mod Installer" CONSOLE_RESET "\n");
+        console_set_status("\n" GREEN "Mod Installer" RESET);
 
         if (installation_finish)
             printf("Mod Installer already finished. Press B to return to the main menu.\n\n");
@@ -26,17 +29,21 @@ void mainMenuLoop(int kDown) {
         menu = ARC_DUMPER_MENU;
 
         consoleClear();
-        printf(CONSOLE_GREEN "\nData Arc Dumper" CONSOLE_RESET);
+        console_set_status("\n" GREEN "Data Arc Dumper" RESET);
         printf("\n\nPress 'A' to dump as a split file (FAT32)");
         printf("\nPress 'Y' to dump as a single file (exFAT)");
         printf("\nPress 'X' to generate an MD5 hash of the file");
         printf("\nPress 'B' to return to the main menu");
     }
+
+    else if (kDown & KEY_A) {
+        menu = FTP_MENU;
+    }
 }
 
 int main(int argc, char **argv)
 {
-    consoleInit(NULL);
+    console_init();
     printMainMenu();
 
     while(appletMainLoop())
@@ -53,6 +60,8 @@ int main(int argc, char **argv)
             modInstallerMainLoop(kDown);
         else if (menu == ARC_DUMPER_MENU)
             dumperMainLoop(kDown);
+        else if (menu == FTP_MENU)
+            ftp_main();
 
         consoleUpdate(NULL);
     }
