@@ -10,7 +10,7 @@ int menu = MAIN_MENU;
 
 void printMainMenu() {
     consoleClear();
-    printf("\n\x1b[1;32mUltimate Mod Manager\x1b[0m");
+    printf(CONSOLE_GREEN "\nUltimate Mod Manager" CONSOLE_RESET);
     printf("\n\nPress 'Y' to go to the Mod Installer");
     printf("\nPress 'X' to go to the Data Arc Dumper");
 }

@@ -9,7 +9,7 @@
 #include "utils.h"
 #include <mbedtls/md5.h>
 
-bool done = false;
+bool dump_done = false;
 bool exfat = false;
 std::string outPath = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
 const int MD5_DIGEST_LENGTH = 16;
@@ -210,8 +210,8 @@ void dumperMainLoop(int kDown) {
         printf("\nNo data.arc file found on the SD card.");
         }
     }
-    if (kDown & KEY_Y && !done) exfat = true;
-    if ((kDown & KEY_A || kDown & KEY_Y) && !done)
+    if (kDown & KEY_Y && !dump_done) exfat = true;
+    if ((kDown & KEY_A || kDown & KEY_Y) && !dump_done)
     {
         printf("\nBeginning the dumping process...");
         consoleUpdate(NULL);
@@ -226,9 +226,15 @@ void dumperMainLoop(int kDown) {
         romfsUnmount("romfs");
         u64 endTime = std::time(0);
 
-        done = true;  // So you don't accidentally dump twice
+        dump_done = true;  // So you don't accidentally dump twice
         printf("\nCompleted in %.2f minutes.", (float)(endTime - startTime)/60);
         printf("\nOptional: Press 'X' generate an MD5 hash of the file");
+        printf("\nPress B to return to the main menu.\n");
+    }
+
+    if (kDown & KEY_B) {
+        menu = MAIN_MENU;
+        printMainMenu();
     }
     if (kDown & KEY_B) {
         menu = MAIN_MENU;

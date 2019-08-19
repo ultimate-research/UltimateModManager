@@ -2,39 +2,30 @@
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "utils.h"
 
 #define FILENAME_SIZE 0x130
 #define FILE_READ_SIZE 0x20000
 
-void current_time(int* hours, int* minutes, int* seconds) {
-    time_t now;
-    time(&now);
-
-    struct tm *local = localtime(&now);
-    *hours = local->tm_hour;
-    *minutes = local->tm_min;
-    *seconds = local->tm_sec;
-}
-
 int seek_files(FILE* f, uint64_t offset, FILE* arc) {
     // Set file pointers to start of file and offset respectively
     int ret = fseek(f, 0, SEEK_SET);
     if (ret) {
-        printf("Failed to seek file with errno %d\n", ret);
+        printf(CONSOLE_RED "Failed to seek file with errno %d\n" CONSOLE_RESET, ret);
         return ret;
     }
 
     ret = fseek(arc, offset, SEEK_SET);
     if (ret) {
-        printf("Failed to seek offset %lx from start of data.arc with errno %d\n", offset, ret);
+        printf(CONSOLE_RED "Failed to seek offset %lx from start of data.arc with errno %d\n" CONSOLE_RESET, offset, ret);
         return ret;
     }
 
     return 0;
 }
 
-int load_mod(char* path, uint64_t offset, FILE* arc) {
+int load_mod(const char* path, uint64_t offset, FILE* arc) {
     FILE* f = fopen(path, "rb");
     if(f) {
         int ret = seek_files(f, offset, arc);
@@ -56,18 +47,25 @@ int load_mod(char* path, uint64_t offset, FILE* arc) {
 
         fclose(f);
     } else {
-        printf("Found file '%s', failed to get file handle\n", path);
+        printf(CONSOLE_RED "Found file '%s', failed to get file handle\n" CONSOLE_RESET, path);
         return -1;
     }
 
     return 0;
 }
 
-int create_backup(char* mod_dir, char* filename, uint64_t offset, FILE* arc) {
+int create_backup(const char* mod_dir, char* filename, uint64_t offset, FILE* arc) {
     char* backup_path = (char*) malloc(FILENAME_SIZE);
     char* mod_path = (char*) malloc(FILENAME_SIZE);
     snprintf(backup_path, FILENAME_SIZE, "sdmc:/UltimateModManager/backups/0x%lx.backup", offset);
     snprintf(mod_path, FILENAME_SIZE, "sdmc:/UltimateModManager/%s/%s", mod_dir, filename);
+
+    if (fileExists(std::string(backup_path))) {
+        printf(CONSOLE_BLUE "Backup file 0x%lx.backup already exists\n" CONSOLE_RESET, offset);
+        free(backup_path);
+        free(mod_path);
+        return 0;
+    }
 
     FILE* backup = fopen(backup_path, "wb");
     FILE* mod = fopen(mod_path, "rb");
@@ -99,10 +97,10 @@ int create_backup(char* mod_dir, char* filename, uint64_t offset, FILE* arc) {
         fclose(mod);
     } else {
         if (backup) fclose(backup);
-        else printf("Attempted to create backup file '%s', failed to get backup file handle\n", backup_path);
+        else printf(CONSOLE_RED "Attempted to create backup file '%s', failed to get backup file handle\n" CONSOLE_RESET, backup_path);
 
         if (mod) fclose(mod);
-        else printf("Attempted to create backup file '%s', failed to get mod file handle '%s'\n", backup_path, mod_path);
+        else printf(CONSOLE_RED "Attempted to create backup file '%s', failed to get mod file handle '%s'\n" CONSOLE_RESET, backup_path, mod_path);
     }
 
     free(backup_path);
@@ -161,22 +159,18 @@ void remove_last_mod_dir() {
 }
 
 int load_mods(FILE* f_arc) {
-    char* mod_dir = (char*) malloc(FILENAME_SIZE);
-    strcpy(mod_dir, mod_dirs[num_mod_dirs-1]);
+    std::string mod_dir = mod_dirs[num_mod_dirs-1];
 
     remove_last_mod_dir();
 
-    char* tmp = (char*) malloc(FILENAME_SIZE);
     DIR *d;
     struct dirent *dir;
-    int hours, minutes, seconds;
 
-    printf("Searching mod dir %s%s%s\n\n", CONSOLE_YELLOW, mod_dir, CONSOLE_RESET);
+    printf("Searching mod dir " CONSOLE_YELLOW "%s\n\n" CONSOLE_RESET, mod_dir.c_str());
     consoleUpdate(NULL);
-    
-    snprintf(tmp, FILENAME_SIZE, "sdmc:/UltimateModManager/%s/", mod_dir);
 
-    d = opendir(tmp);
+    std::string abs_mod_dir = "sdmc:/UltimateModManager/" + mod_dir;
+    d = opendir(abs_mod_dir.c_str());
     if (d)
     {
         while ((dir = readdir(d)) != NULL)
@@ -184,50 +178,45 @@ int load_mods(FILE* f_arc) {
             if(dir->d_type == DT_DIR) {
                 if (strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0)
                     continue;
-                snprintf(tmp, FILENAME_SIZE, "%s/%s", mod_dir, dir->d_name);
-                add_mod_dir(tmp);
+                std::string new_mod_dir = mod_dir + "/" + dir->d_name;
+                add_mod_dir(new_mod_dir.c_str());
             } else {
                 uint64_t offset = hex_to_u64(dir->d_name);
                 if(offset){
-                    if (strcmp(mod_dir, "backups") == 0) {
-                        current_time(&hours, &minutes, &seconds);
-                        snprintf(tmp, FILENAME_SIZE, "sdmc:/UltimateModManager/backups/%s", dir->d_name);
-                        load_mod(tmp, offset, f_arc);
+                    if (mod_dir == "backups") {
+                        std::string backup_file = "sdmc:/UltimateModManager/backups/" + std::string(dir->d_name);
+                        load_mod(backup_file.c_str(), offset, f_arc);
 
-                        remove(tmp);
-                        current_time(&hours, &minutes, &seconds);
+                        remove(backup_file.c_str());
                         printf("%s%s%s\n\n", CONSOLE_BLUE, dir->d_name, CONSOLE_RESET);
                         consoleUpdate(NULL);
                     } else {
-                        current_time(&hours, &minutes, &seconds);
                         consoleUpdate(NULL);
-                        create_backup(mod_dir, dir->d_name, offset, f_arc);
+                        create_backup(mod_dir.c_str(), dir->d_name, offset, f_arc);
 
-                        snprintf(tmp, FILENAME_SIZE, "sdmc:/UltimateModManager/%s/%s", mod_dir, dir->d_name);
-                        load_mod(tmp, offset, f_arc);
-                        current_time(&hours, &minutes, &seconds);
-                        printf("%s%s/%s%s\n\n", CONSOLE_GREEN, mod_dir, dir->d_name, CONSOLE_RESET);
+                        std::string mod_file = "sdmc:/UltimateModManager/" + mod_dir + "/" + dir->d_name;
+                        load_mod(mod_file.c_str(), offset, f_arc);
+                        printf(CONSOLE_GREEN "%s/%s\n\n" CONSOLE_RESET, mod_dir.c_str(), dir->d_name);
                         consoleUpdate(NULL);
                     }
                 } else {
-                    printf("%sFound file '%s', offset not parsable%s\n", CONSOLE_RED, dir->d_name, CONSOLE_RESET);
+                    printf(CONSOLE_RED "Found file '%s', offset not parsable\n" CONSOLE_RESET, dir->d_name);
                     consoleUpdate(NULL);
                 }
             }
         }
         closedir(d);
     } else {
-        printf("Failed to open mod directory '%s'\n", mod_dir);
+        printf("Failed to open mod directory '%s'\n", mod_dir.c_str());
         consoleUpdate(NULL);
     }
 
-    free(tmp);
-    free(mod_dir);
     return 0;
 }
 
 void perform_installation() {
-    FILE* f_arc = fopen("sdmc:/atmosphere/titles/01006A800016E000/romfs/data.arc", "r+b");
+    std::string arc_path = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
+    FILE* f_arc = fopen(arc_path.c_str(), "r+b");
     if(!f_arc){
         printf("Failed to get file handle to data.arc\n");
         goto end;
@@ -273,52 +262,52 @@ void modInstallerMainLoop(int kDown)
         struct dirent *dir;
         if (d) {
             size_t curr_folder_index = 0;
-            bool select_backups = false;
-            while ((dir = readdir(d)) != NULL || !select_backups) {
-                if (dir == NULL) {
-                    select_backups = true;
-                    if (mod_folder_index > curr_folder_index)
-                        mod_folder_index = curr_folder_index;
-
-                    if (mod_folder_index == curr_folder_index) {
-                        mod_folder_index = curr_folder_index;
-                        printf("%s> ", CONSOLE_GREEN);
-                        if (start_install) {
-                            found_dir = true;
-                            add_mod_dir("backups");
-                        }
-                    }
-
-                    printf("backups\n");
-
-                    if (mod_folder_index == curr_folder_index)
-                        printf(CONSOLE_RESET);
-                } else if(dir->d_type == DT_DIR) {
-                    if (strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0)
+            while ((dir = readdir(d)) != NULL) {
+                std::string d_name = std::string(dir->d_name);
+                if(dir->d_type == DT_DIR) {
+                    if (d_name == "." || d_name == "..")
                         continue;
-                    char* tmp = (char*) malloc(FILENAME_SIZE);
-                    snprintf(tmp, FILENAME_SIZE, "mods/%s", dir->d_name);
+                    std::string directory = "mods/" + d_name;
 
                     if (curr_folder_index == mod_folder_index) {
                         printf("%s> ", CONSOLE_GREEN);
                         if (start_install) {
                             found_dir = true;
-                            add_mod_dir(tmp);
+                            add_mod_dir(directory.c_str());
                         }
                     }
                     printf("%s\n", dir->d_name);
                     if (curr_folder_index == mod_folder_index)
                         printf(CONSOLE_RESET);
-                    free(tmp);
                     curr_folder_index++;
                 }
             }
 
+            if (mod_folder_index > curr_folder_index)
+                mod_folder_index = curr_folder_index;
+
+            if (mod_folder_index == curr_folder_index) {
+                mod_folder_index = curr_folder_index;
+                printf("%s> ", CONSOLE_GREEN);
+                if (start_install) {
+                    found_dir = true;
+                    add_mod_dir("backups");
+                }
+            }
+
+            printf("backups\n");
+
+            if (mod_folder_index == curr_folder_index)
+                printf(CONSOLE_RESET);
+
             closedir(d);
+        } else {
+            printf(CONSOLE_RED "sdmc:/UltimateModManager/mods folder not found\n\n" CONSOLE_RESET);
         }
 
         consoleUpdate(NULL);
         if (start_install && found_dir) {
+            mkdir("sdmc:/UltimateModManager/backups", 0777);
             perform_installation();
             installation_finish = true;
             mod_dirs = NULL;
