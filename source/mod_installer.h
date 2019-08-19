@@ -300,10 +300,13 @@ void modInstallerMainLoop(int kDown)
                 printf(CONSOLE_RESET);
 
             closedir(d);
+        } else {
+            printf(CONSOLE_RED "sdmc:/UltimateModManager/mods folder not found\n\n" CONSOLE_RESET);
         }
 
         consoleUpdate(NULL);
         if (start_install && found_dir) {
+            mkdir("sdmc:/UltimateModManager/backups", 0777);
             perform_installation();
             installation_finish = true;
             mod_dirs = NULL;
