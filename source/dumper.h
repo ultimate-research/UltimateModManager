@@ -70,10 +70,13 @@ void copy(const char* from, const char* to, bool exfat = false)
       printf("\nNo applet mode.\nYou must override Smash for this application to work properly.\nHold 'R' while launching Smash to do so.");
       return;
     }
+    remove(outPath.c_str());
+    romfsMountFromCurrentProcess("romfs");
     std::ifstream source(from, std::ifstream::binary);
     if(source.fail())
     {
       printf ("\nThe romfs could not be read.");
+      romfsUnmount("romfs");
 	    return;
     }
     source.seekg(0, std::ios::end);
@@ -83,6 +86,7 @@ void copy(const char* from, const char* to, bool exfat = false)
     if(std::filesystem::space(to).available < size)
     {
       printf("\nNot enough storage space on the SD card.");
+      romfsUnmount("romfs");
       return;
     }
     std::string folder(to);
@@ -100,6 +104,7 @@ void copy(const char* from, const char* to, bool exfat = false)
     if(dest.fail())
     {
       printf("\nCould not open the destination file.");
+      romfsUnmount("romfs");
       return;
     }
 
@@ -174,6 +179,7 @@ void copy(const char* from, const char* to, bool exfat = false)
       if(dest.bad())
       {
         printf("\nSomething went wrong!");
+        romfsUnmount("romfs");
         return;
       }
       sizeWritten += bufSize;
@@ -184,6 +190,7 @@ void copy(const char* from, const char* to, bool exfat = false)
       consoleUpdate(NULL);
     }
     delete[] buf;
+    romfsUnmount("romfs");
     //printf("\n");
 }
 
@@ -216,14 +223,11 @@ void dumperMainLoop(int kDown) {
         printf("\nBeginning the dumping process...");
         consoleUpdate(NULL);
         u64 startTime = std::time(0);
-        remove(outPath.c_str());
-        romfsMountFromCurrentProcess("romfs");
         appletBeginBlockingHomeButton(0);
         appletSetMediaPlaybackState(true);
         copy("romfs:/data.arc", outPath.c_str(), exfat);
         appletEndBlockingHomeButton();
         appletSetMediaPlaybackState(false);
-        romfsUnmount("romfs");
         u64 endTime = std::time(0);
 
         dump_done = true;  // So you don't accidentally dump twice
