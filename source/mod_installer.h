@@ -238,7 +238,7 @@ void perform_installation() {
     fclose(f_arc);
 
 end:
-    printf("Mod Installer finished.\nPress B to return to the main menu.\n");
+    printf("Mod Installer finished.\nPress B to return to the Mod Installer.\n");
 	printf("Press X to launch Smash\n\n");
 }
 
@@ -319,8 +319,14 @@ void modInstallerMainLoop(int kDown)
     }
 
     if (kDown & KEY_B) {
-        menu = MAIN_MENU;
-        printMainMenu();
+        if (installation_finish) {
+          installation_finish = false;
+          consoleClear();
+        }
+        else {
+          menu = MAIN_MENU;
+          printMainMenu();
+        }
     }
     if(kDown & KEY_X) {
         appletRequestLaunchApplication(0x01006A800016E000, NULL);
