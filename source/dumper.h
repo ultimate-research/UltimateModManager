@@ -24,7 +24,7 @@ void md5HashFromFile(std::string filename, unsigned char* out)
 
     if (inFile == NULL)
     {
-      printf ("\nThe data.arc file can not be opened.");
+      printf (CONSOLE_RED "\nThe data.arc file can not be opened." CONSOLE_RESET);
       return;
     }
     mbedtls_md5_init (&md5Context);
@@ -58,13 +58,13 @@ void copy(const char* from, const char* to, bool exfat = false)
 
     if(runningTID() != smashTID)
     {
-      printf("\nYou must override Smash for this application to work properly.\nHold 'R' while launching Smash to do so.");
+      printf(CONSOLE_RED "\nYou must override Smash for this application to work properly.\nHold 'R' while launching Smash to do so." CONSOLE_RESET);
       return;
     }
     AppletType at = appletGetAppletType();
     if (at != AppletType_Application && at != AppletType_SystemApplication)
     {
-      printf("\nNo applet mode.\nYou must override Smash for this application to work properly.\nHold 'R' while launching Smash to do so.");
+      printf(CONSOLE_RED "\nNo applet mode.\nYou must override Smash for this application to work properly.\nHold 'R' while launching Smash to do so." CONSOLE_RESET);
       return;
     }
     remove(outPath.c_str());
@@ -72,7 +72,7 @@ void copy(const char* from, const char* to, bool exfat = false)
     FILE* source = fopen(from, "rb");
     if(source == nullptr)
     {
-      printf ("\nThe romfs could not be read.");
+      printf (CONSOLE_RED "\nThe romfs could not be read." CONSOLE_RESET);
       fclose(source);
       romfsUnmount("romfs");
 	    return;
@@ -83,7 +83,7 @@ void copy(const char* from, const char* to, bool exfat = false)
 
     if(std::filesystem::space(to).available < size)
     {
-      printf("\nNot enough storage space on the SD card.");
+      printf(CONSOLE_RED "\nNot enough storage space on the SD card." CONSOLE_RESET);
       fclose(source);
       romfsUnmount("romfs");
       return;
@@ -100,7 +100,7 @@ void copy(const char* from, const char* to, bool exfat = false)
     FILE* dest = fopen(to, "wb");
     if(dest == nullptr)
     {
-      printf("\nCould not open the destination file.");
+      printf(CONSOLE_RED "\nCould not open the destination file." CONSOLE_RESET);
       fclose(dest);
       fclose(source);
       romfsUnmount("romfs");
@@ -113,7 +113,7 @@ void copy(const char* from, const char* to, bool exfat = false)
     size_t ret;
 
     if(size == 0)
-      printf("\nThere might be a problem with the data.arc file on your SD card. Please remove the file manually.");
+      printf(CONSOLE_RED "\nThere might be a problem with the data.arc file on your SD card. Please remove the file manually." CONSOLE_RESET);
     while(sizeWritten < size)
     {
       if(sizeWritten + bufSize > size)
@@ -174,7 +174,7 @@ void copy(const char* from, const char* to, bool exfat = false)
       ret = fwrite(buf, sizeof(char), bufSize, dest);
       if(ret != bufSize)
       {
-        printf("\nSomething went wrong!");
+        printf(CONSOLE_RED "\nSomething went wrong!" CONSOLE_RESET);
         fclose(dest);
         fclose(source);
         romfsUnmount("romfs");
@@ -214,7 +214,7 @@ void dumperMainLoop(int kDown) {
         }
         else
         {
-        printf("\nNo data.arc file found on the SD card.");
+        printf(CONSOLE_RED "\nNo data.arc file found on the SD card." CONSOLE_RESET);
         }
     }
     if (kDown & KEY_Y && !dump_done) exfat = true;
