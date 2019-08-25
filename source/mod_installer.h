@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "utils.h"
+#include "offsetFile.h"
 
 #define FILENAME_SIZE 0x130
 #define FILE_READ_SIZE 0x20000
@@ -162,7 +163,7 @@ void remove_last_mod_dir() {
     num_mod_dirs--;
 }
 
-int load_mods(FILE* f_arc) {
+int load_mods(FILE* f_arc, offsetFile* offsetObj) {
     std::string mod_dir = mod_dirs[num_mod_dirs-1];
 
     remove_last_mod_dir();
@@ -186,6 +187,20 @@ int load_mods(FILE* f_arc) {
                 add_mod_dir(new_mod_dir.c_str());
             } else {
                 uint64_t offset = hex_to_u64(dir->d_name);
+                std::string offsetDBPath = "/UltimateModManager/Offsets.txt";
+                if(!offset) {
+                    if(offsetObj == nullptr && std::filesystem::exists(offsetDBPath)) {
+                        printf("Parsing Offsets.txt\n");
+                        consoleUpdate(NULL);
+                        offsetObj = new offsetFile(offsetDBPath);
+                    }
+                    if(offsetObj != nullptr) {
+                        printf("Trying to find offset in Offsets.txt\n");
+                        consoleUpdate(NULL);
+                        std::string arcFileName = (mod_dir.substr(mod_dir.find('/', mod_dir.find('/')+1) + 1) + "/" + dir->d_name);
+                        offset = offsetObj->getOffset(arcFileName);
+                    }
+                }
                 if(offset){
                     if (mod_dir == "backups") {
                         std::string backup_file = std::string(backups_root) + std::string(dir->d_name);
@@ -219,6 +234,7 @@ int load_mods(FILE* f_arc) {
 }
 
 void perform_installation() {
+    offsetFile* offsetObj = nullptr;
     std::string arc_path = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
     FILE* f_arc = fopen(arc_path.c_str(), "r+b");
     if(!f_arc){
@@ -230,7 +246,7 @@ void perform_installation() {
     consoleUpdate(NULL);
     while (num_mod_dirs > 0) {
         consoleUpdate(NULL);
-        load_mods(f_arc);
+        load_mods(f_arc, offsetObj);
     }
 
     free(mod_dirs);
@@ -238,8 +254,10 @@ void perform_installation() {
     fclose(f_arc);
 
 end:
+    if(offsetObj != nullptr)
+        delete offsetObj;
     printf("Mod Installer finished.\nPress B to return to the Mod Installer.\n");
-	printf("Press X to launch Smash\n\n");
+    printf("Press X to launch Smash\n\n");
 }
 
 void modInstallerMainLoop(int kDown)
