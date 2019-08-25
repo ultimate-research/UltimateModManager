@@ -141,13 +141,14 @@ unsigned char xtoc(char x) {
 }
 
 uint64_t hex_to_u64(char* str) {
-    if(str[0] == '0' && str[1] == 'x')
-        str += 2;
     uint64_t value = 0;
-    while(_isxdigit(*str)) {
-        value *= 0x10;
-        value += xtoc(*str);
-        str++;
+    if(str[0] == '0' && str[1] == 'x') {
+        str += 2;
+        while(_isxdigit(*str)) {
+            value *= 0x10;
+            value += xtoc(*str);
+            str++;
+        }
     }
     return value;
 }
