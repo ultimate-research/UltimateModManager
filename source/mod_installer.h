@@ -165,16 +165,6 @@ void remove_last_mod_dir() {
     num_mod_dirs--;
 }
 
-bool hasZSTDMagic(std::string filePath) {
-  const int magicSize = 4;
-  const unsigned char ZSTDMagic[magicSize] = {0x28, 0xB5, 0x2F, 0xFD}; //{40, 181, 47, 253}; //28 B5 2F FD
-  unsigned char buf[magicSize]; //= new unsigned char[magicSize];
-  FILE* file = fopen(filePath.c_str(), "rb");
-  fread(buf, magicSize, sizeof(unsigned char), file);
-  fclose(file);
-  return memcmp(ZSTDMagic, buf, magicSize) == 0;
-}
-
 int load_mods(FILE* f_arc, offsetFile* offsetObj) {
     std::string mod_dir = mod_dirs[num_mod_dirs-1];
 
@@ -197,7 +187,7 @@ int load_mods(FILE* f_arc, offsetFile* offsetObj) {
                     continue;
                 std::string new_mod_dir = mod_dir + "/" + dir->d_name;
                 add_mod_dir(new_mod_dir.c_str());
-            } else if(hasZSTDMagic(abs_mod_dir + '/' + dir->d_name)) {
+            } else {
                 uint64_t offset = hex_to_u64(dir->d_name);
                 if(!offset) {
                     if(offsetObj == nullptr && std::filesystem::exists(offsetDBPath)) {
@@ -233,10 +223,6 @@ int load_mods(FILE* f_arc, offsetFile* offsetObj) {
                     printf(CONSOLE_RED "Found file '%s', offset not parsable\n" CONSOLE_RESET, dir->d_name);
                     consoleUpdate(NULL);
                 }
-            }
-            else {
-              printf(CONSOLE_RED "Found file '%s', not a compressed file\n" CONSOLE_RESET, dir->d_name);
-              consoleUpdate(NULL);
             }
         }
         closedir(d);
