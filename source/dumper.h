@@ -199,22 +199,24 @@ void dumperMainLoop(int kDown) {
     {
         if(std::filesystem::exists(outPath))
         {
-        printf("\nBeginning hash generation...");
-        consoleUpdate(NULL);
-        unsigned char out[MD5_DIGEST_LENGTH];
-        u64 startTime = std::time(0);
-        // Should I block home button here too?
-        appletSetMediaPlaybackState(true);
-        md5HashFromFile(outPath, out);
-        appletSetMediaPlaybackState(false);
-        u64 endTime = std::time(0);
-        printf("\nmd5:");
-        for(int i = 0; i < MD5_DIGEST_LENGTH; i++) printf("%02x", out[i]);
-        printf("\nHashing took %.2f minutes", (float)(endTime - startTime)/60);
+          printf("\nBeginning hash generation...");
+          consoleUpdate(NULL);
+          unsigned char out[MD5_DIGEST_LENGTH];
+          u64 startTime = std::time(0);
+          // Should I block home button here too?
+          appletSetMediaPlaybackState(true);
+          md5HashFromFile(outPath, out);
+          appletSetMediaPlaybackState(false);
+          u64 endTime = std::time(0);
+          printf("\nmd5:");
+          for(int i = 0; i < MD5_DIGEST_LENGTH; i++) printf("%02x", out[i]);
+          printf("\nHashing took %.2f minutes", (float)(endTime - startTime)/60);
+          consoleUpdate(NULL);
+          shortVibratePattern();
         }
         else
         {
-        printf(CONSOLE_RED "\nNo data.arc file found on the SD card." CONSOLE_RESET);
+          printf(CONSOLE_RED "\nNo data.arc file found on the SD card." CONSOLE_RESET);
         }
     }
     if (kDown & KEY_Y && !dump_done) exfat = true;
@@ -234,6 +236,8 @@ void dumperMainLoop(int kDown) {
         printf("\nCompleted in %.2f minutes.", (float)(endTime - startTime)/60);
         printf("\nOptional: Press 'X' generate an MD5 hash of the file");
         printf("\nPress B to return to the main menu.\n");
+        consoleUpdate(NULL);
+        shortVibratePattern();
     }
 
     if (kDown & KEY_B) {
