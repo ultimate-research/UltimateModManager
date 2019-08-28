@@ -8,15 +8,11 @@ public:
   offsetFile(std::string offsetDBPath)
   {
     std::ifstream offsets(offsetDBPath);
-    std::string line;
     std::string filename;
-    u64 offset;
-    int splitpos;
-    while(getline(offsets, line)) {
-      splitpos = line.find(',');
-      filename = line.substr(0, splitpos);
-      offset = strtoul(line.substr(splitpos + 1).c_str(), NULL, 16);
-      offsetMap.insert({filename, offset});
+    std::string offset;
+    while(getline(offsets, filename, ',')) {
+      getline(offsets, offset);
+      offsetMap.emplace(filename, strtoul(offset.c_str(), NULL, 16));
     }
   }
   u64 getOffset(std::string arcFilePath)
