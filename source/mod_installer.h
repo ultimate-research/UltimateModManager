@@ -13,6 +13,7 @@ char** mod_dirs = NULL;
 size_t num_mod_dirs = 0;
 bool installation_finish = false;
 size_t mod_folder_index = 0;
+offsetFile* offsetObj = nullptr;
 
 const char* manager_root = "sdmc:/UltimateModManager/";
 const char* mods_root = "sdmc:/UltimateModManager/mods/";
@@ -165,7 +166,7 @@ void remove_last_mod_dir() {
     num_mod_dirs--;
 }
 
-int load_mods(FILE* f_arc, offsetFile* offsetObj) {
+int load_mods(FILE* f_arc) {
     std::string mod_dir = mod_dirs[num_mod_dirs-1];
 
     remove_last_mod_dir();
@@ -235,7 +236,6 @@ int load_mods(FILE* f_arc, offsetFile* offsetObj) {
 }
 
 void perform_installation() {
-    offsetFile* offsetObj = nullptr;
     std::string arc_path = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
     FILE* f_arc = fopen(arc_path.c_str(), "r+b");
     if(!f_arc){
@@ -247,7 +247,7 @@ void perform_installation() {
     consoleUpdate(NULL);
     while (num_mod_dirs > 0) {
         consoleUpdate(NULL);
-        load_mods(f_arc, offsetObj);
+        load_mods(f_arc);
     }
 
     free(mod_dirs);
@@ -255,8 +255,6 @@ void perform_installation() {
     fclose(f_arc);
 
 end:
-    if(offsetObj != nullptr)
-        delete offsetObj;
     printf("Mod Installer finished.\nPress B to return to the Mod Installer.\n");
     printf("Press X to launch Smash\n\n");
 }
@@ -343,6 +341,10 @@ void modInstallerMainLoop(int kDown)
           consoleClear();
         }
         else {
+          if(offsetObj != nullptr) {
+              delete offsetObj;
+              offsetObj = nullptr;
+          }
           menu = MAIN_MENU;
           printMainMenu();
         }

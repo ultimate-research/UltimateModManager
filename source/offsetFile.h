@@ -12,7 +12,7 @@ public:
     std::string offset;
     while(getline(offsets, filename, ',')) {
       getline(offsets, offset);
-      offsetMap.emplace(filename, strtoul(offset.c_str(), NULL, 16));
+      offsetMap.try_emplace(filename, strtoul(offset.c_str(), NULL, 16));
     }
   }
   u64 getOffset(std::string arcFilePath)
