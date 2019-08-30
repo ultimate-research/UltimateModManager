@@ -8,14 +8,21 @@
 #define FILENAME_SIZE 0x130
 #define FILE_READ_SIZE 0x20000
 
+#define MOD_NONE 0
+#define MOD_FOLDER 1
+#define MOD_FILE 2
+
 char** mod_dirs = NULL;
 size_t num_mod_dirs = 0;
 bool installation_finish = false;
-size_t mod_folder_index = 0;
+size_t mod_index = 0;
+size_t mod_type = MOD_NONE;
 
 const char* manager_root = "sdmc:/UltimateModManager/";
 const char* mods_root = "sdmc:/UltimateModManager/mods/";
 const char* backups_root = "sdmc:/UltimateModManager/backups/";
+
+std::string mods_folder = "sdmc:/UltimateModManager/mods/";
 
 int seek_files(FILE* f, uint64_t offset, FILE* arc) {
     // Set file pointers to start of file and offset respectively
@@ -63,11 +70,11 @@ int load_mod(const char* path, uint64_t offset, FILE* arc) {
     return 0;
 }
 
-int create_backup(const char* mod_dir, char* filename, uint64_t offset, FILE* arc) {
+int create_backup(const char* filename, uint64_t offset, FILE* arc) {
     char* backup_path = (char*) malloc(FILENAME_SIZE);
     char* mod_path = (char*) malloc(FILENAME_SIZE);
     snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
-    snprintf(mod_path, FILENAME_SIZE, "%s%s/%s", manager_root, mod_dir, filename);
+    snprintf(mod_path, FILENAME_SIZE, "%s%s", mods_folder.c_str(), filename);
 
     if (fileExists(std::string(backup_path))) {
         printf(CONSOLE_BLUE "Backup file 0x%lx.backup already exists\n" CONSOLE_RESET, offset);
@@ -139,7 +146,7 @@ unsigned char xtoc(char x) {
     return -1;
 }
 
-uint64_t hex_to_u64(char* str) {
+uint64_t hex_to_u64(const char* str) {
     if(str[0] == '0' && str[1] == 'x')
         str += 2;
     uint64_t value = 0;
@@ -162,19 +169,26 @@ void remove_last_mod_dir() {
     num_mod_dirs--;
 }
 
+void install_mod(std::string mod_name, uint64_t offset, FILE* f_arc) {
+    create_backup(mod_name.c_str(), offset, f_arc);
+    std::string mod_path = mods_folder + mod_name;
+    load_mod(mod_path.c_str(), offset, f_arc);
+    printf(CONSOLE_GREEN "%s\n\n" CONSOLE_RESET, mod_path.c_str());
+    consoleUpdate(NULL);
+}
+
 int load_mods(FILE* f_arc) {
-    std::string mod_dir = mod_dirs[num_mod_dirs-1];
+    mods_folder = mod_dirs[num_mod_dirs-1];
 
     remove_last_mod_dir();
 
     DIR *d;
     struct dirent *dir;
 
-    printf("Searching mod dir " CONSOLE_YELLOW "%s\n\n" CONSOLE_RESET, mod_dir.c_str());
+    printf("Searching mod dir " CONSOLE_YELLOW "%s\n\n" CONSOLE_RESET, mods_folder.c_str());
     consoleUpdate(NULL);
 
-    std::string abs_mod_dir = std::string(manager_root) + mod_dir;
-    d = opendir(abs_mod_dir.c_str());
+    d = opendir(mods_folder.c_str());
     if (d)
     {
         while ((dir = readdir(d)) != NULL)
@@ -182,12 +196,12 @@ int load_mods(FILE* f_arc) {
             if(dir->d_type == DT_DIR) {
                 if (strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0)
                     continue;
-                std::string new_mod_dir = mod_dir + "/" + dir->d_name;
+                std::string new_mod_dir = mods_folder + dir->d_name;
                 add_mod_dir(new_mod_dir.c_str());
             } else {
                 uint64_t offset = hex_to_u64(dir->d_name);
                 if(offset){
-                    if (mod_dir == "backups") {
+                    if (mods_folder == backups_root) {
                         std::string backup_file = std::string(backups_root) + std::string(dir->d_name);
                         load_mod(backup_file.c_str(), offset, f_arc);
 
@@ -195,13 +209,7 @@ int load_mods(FILE* f_arc) {
                         printf(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, dir->d_name);
                         consoleUpdate(NULL);
                     } else {
-                        consoleUpdate(NULL);
-                        create_backup(mod_dir.c_str(), dir->d_name, offset, f_arc);
-
-                        std::string mod_file = std::string(manager_root) + mod_dir + "/" + dir->d_name;
-                        load_mod(mod_file.c_str(), offset, f_arc);
-                        printf(CONSOLE_GREEN "%s/%s\n\n" CONSOLE_RESET, mod_dir.c_str(), dir->d_name);
-                        consoleUpdate(NULL);
+                        install_mod(dir->d_name, offset, f_arc);
                     }
                 } else {
                     printf(CONSOLE_RED "Found file '%s', offset not parsable\n" CONSOLE_RESET, dir->d_name);
@@ -211,14 +219,14 @@ int load_mods(FILE* f_arc) {
         }
         closedir(d);
     } else {
-        printf(CONSOLE_RED "Failed to open mod directory '%s'\n" CONSOLE_RESET, abs_mod_dir.c_str());
+        printf(CONSOLE_RED "Failed to open mod directory '%s'\n" CONSOLE_RESET, mods_folder.c_str());
         consoleUpdate(NULL);
     }
 
     return 0;
 }
 
-void perform_installation() {
+void perform_installation(std::string mod_name) {
     std::string arc_path = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
     FILE* f_arc = fopen(arc_path.c_str(), "r+b");
     if(!f_arc){
@@ -226,14 +234,25 @@ void perform_installation() {
         goto end;
     }
  
-    printf("\nInstalling mods...\n\n");
-    consoleUpdate(NULL);
-    while (num_mod_dirs > 0) {
+    if (mod_type == MOD_FOLDER) {
+        add_mod_dir(mod_name.c_str());
+        printf("\nInstalling mods...\n\n");
         consoleUpdate(NULL);
-        load_mods(f_arc);
-    }
+        while (num_mod_dirs > 0) {
+            consoleUpdate(NULL);
+            load_mods(f_arc);
+        }
 
-    free(mod_dirs);
+        free(mod_dirs);
+    } else if (mod_type == MOD_FILE) {
+        uint64_t offset = hex_to_u64(mod_name.c_str());
+        if(offset){
+            install_mod(mod_name, offset, f_arc);
+        } else {
+            printf(CONSOLE_RED "Found file '%s', offset not parsable\n" CONSOLE_RESET, mod_name.c_str());
+            consoleUpdate(NULL);
+        }
+    }
 
     fclose(f_arc);
 
@@ -247,82 +266,104 @@ void modInstallerMainLoop(int kDown)
     if (!installation_finish) {
         consoleClear();
         if (kDown & KEY_DDOWN || kDown & KEY_LSTICK_DOWN)
-            mod_folder_index++;
+            mod_index++;
         else if (kDown & KEY_DUP || kDown & KEY_LSTICK_UP)
-            mod_folder_index--;
+            mod_index--;
 
-        if (mod_folder_index < 0)
-            mod_folder_index = 0;
+        if (mod_index < 0)
+            mod_index = 0;
 
         bool start_install = false;
+        bool found_mod = false;
+        bool enter_folder = false;
         if (kDown & KEY_A)
             start_install = true;
-        bool found_dir = false;
+        else if (kDown & KEY_Y)
+            enter_folder = true;
+        else if (kDown & KEY_X) {
+            std::size_t found = mods_folder.find_last_of("/");
+            std::string new_mods_folder = mods_folder.substr(0,found+1);
+            if (mods_folder != mods_root) {
+                mods_folder = new_mods_folder;
+            }
+        }
+
+        std::string mod_name;
 
         printf("Please select a mods folder below to install.\n\n");
         
-        DIR* d = opendir(mods_root);
+        DIR* d = opendir(mods_folder.c_str());
         struct dirent *dir;
         if (d) {
-            size_t curr_folder_index = 0;
+            size_t curr_index = 0;
             while ((dir = readdir(d)) != NULL) {
                 std::string d_name = std::string(dir->d_name);
-                if(dir->d_type == DT_DIR) {
-                    if (d_name == "." || d_name == "..")
-                        continue;
-                    std::string directory = "mods/" + d_name;
+                if (d_name == "." || d_name == "..")
+                    continue;
 
-                    if (curr_folder_index == mod_folder_index) {
-                        printf("%s> ", CONSOLE_GREEN);
-                        if (start_install) {
-                            found_dir = true;
-                            add_mod_dir(directory.c_str());
+                if (curr_index == mod_index) {
+                    printf("%s> ", CONSOLE_GREEN);
+                    if (start_install) {
+                        found_mod = true;
+                        if(dir->d_type == DT_DIR) {
+                            mod_type = MOD_FOLDER;
+                            mod_name = mods_folder + d_name + "/";
+                        }
+                        else {
+                            mod_type = MOD_FILE;
+                            mod_name = d_name;
+                        }
+                    } else if (enter_folder) {
+                        if (dir->d_type == DT_DIR) {
+                            mods_folder = mods_folder + d_name + "/";
                         }
                     }
-                    printf("%s\n", dir->d_name);
-                    if (curr_folder_index == mod_folder_index)
-                        printf(CONSOLE_RESET);
-                    curr_folder_index++;
                 }
+                printf("%s\n", dir->d_name);
+                if (curr_index == mod_index)
+                    printf(CONSOLE_RESET);
+                curr_index++;
             }
 
-            if (mod_folder_index > curr_folder_index)
-                mod_folder_index = curr_folder_index;
+            if (mod_index > curr_index)
+                mod_index = curr_index;
 
-            if (mod_folder_index == curr_folder_index) {
-                mod_folder_index = curr_folder_index;
+            if (mod_index == curr_index) {
+                mod_index = curr_index;
                 printf(CONSOLE_GREEN "> ");
                 if (start_install) {
-                    found_dir = true;
-                    add_mod_dir("backups");
+                    mod_type = MOD_FOLDER;
+                    found_mod = true;
+                    mod_name = backups_root;
                 }
             }
 
             printf("backups\n");
 
-            if (mod_folder_index == curr_folder_index)
+            if (mod_index == curr_index)
                 printf(CONSOLE_RESET);
 
             closedir(d);
         } else {
-            printf(CONSOLE_RED "%s folder not found\n\n" CONSOLE_RESET, mods_root);
+            printf(CONSOLE_RED "%s folder not found\n\n" CONSOLE_RESET, mods_folder.c_str());
         }
 
         consoleUpdate(NULL);
-        if (start_install && found_dir) {
+        if (start_install && found_mod) {
             mkdir(backups_root, 0777);
-            perform_installation();
+            perform_installation(mod_name);
             installation_finish = true;
             mod_dirs = NULL;
             num_mod_dirs = 0;
+        }
+    } else {
+        if(kDown & KEY_X) {
+            appletRequestLaunchApplication(0x01006A800016E000, NULL);
         }
     }
 
     if (kDown & KEY_B) {
         menu = MAIN_MENU;
         printMainMenu();
-    }
-    if(kDown & KEY_X) {
-        appletRequestLaunchApplication(0x01006A800016E000, NULL);
     }
 }
