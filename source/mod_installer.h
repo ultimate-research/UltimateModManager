@@ -8,6 +8,11 @@
 #define FILENAME_SIZE 0x130
 #define FILE_READ_SIZE 0x20000
 
+#define INSTALL 0
+#define UNINSTALL 1
+
+bool installing = INSTALL;
+
 char** mod_dirs = NULL;
 size_t num_mod_dirs = 0;
 bool installation_finish = false;
@@ -195,13 +200,24 @@ int load_mods(FILE* f_arc) {
                         printf(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, dir->d_name);
                         consoleUpdate(NULL);
                     } else {
-                        consoleUpdate(NULL);
-                        create_backup(mod_dir.c_str(), dir->d_name, offset, f_arc);
+                        if (installing == INSTALL) {
+                            create_backup(mod_dir.c_str(), dir->d_name, offset, f_arc);
 
-                        std::string mod_file = std::string(manager_root) + mod_dir + "/" + dir->d_name;
-                        load_mod(mod_file.c_str(), offset, f_arc);
-                        printf(CONSOLE_GREEN "%s/%s\n\n" CONSOLE_RESET, mod_dir.c_str(), dir->d_name);
-                        consoleUpdate(NULL);
+                            std::string mod_file = std::string(manager_root) + mod_dir + "/" + dir->d_name;
+                            load_mod(mod_file.c_str(), offset, f_arc);
+                            printf(CONSOLE_GREEN "%s/%s\n\n" CONSOLE_RESET, mod_dir.c_str(), dir->d_name);
+                            consoleUpdate(NULL);
+                        } else if (installing == UNINSTALL) {
+                            char* backup_path = (char*) malloc(FILENAME_SIZE);
+                            snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
+
+                            load_mod(backup_path, offset, f_arc);
+                            remove(backup_path);
+
+                            printf(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, dir->d_name);
+
+                            free(backup_path);
+                        }
                     }
                 } else {
                     printf(CONSOLE_RED "Found file '%s', offset not parsable\n" CONSOLE_RESET, dir->d_name);
@@ -226,7 +242,10 @@ void perform_installation() {
         goto end;
     }
  
-    printf("\nInstalling mods...\n\n");
+    if (installing == INSTALL) 
+        printf("\nInstalling mods...\n\n");
+    else if (installing == UNINSTALL)
+        printf("\nUninstalling mods...\n\n");
     consoleUpdate(NULL);
     while (num_mod_dirs > 0) {
         consoleUpdate(NULL);
@@ -255,11 +274,17 @@ void modInstallerMainLoop(int kDown)
             mod_folder_index = 0;
 
         bool start_install = false;
-        if (kDown & KEY_A)
+        if (kDown & KEY_A) {
             start_install = true;
+            installing = INSTALL;
+        }
+        else if (kDown & KEY_Y) {
+            start_install = true;
+            installing = UNINSTALL;
+        }
         bool found_dir = false;
 
-        printf("Please select a mods folder below to install.\n\n");
+        printf("Please select a mods folder. Press A to install, Y to uninstall.\n\n");
         
         DIR* d = opendir(mods_root);
         struct dirent *dir;
