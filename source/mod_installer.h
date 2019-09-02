@@ -3,11 +3,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "utils.h"
-#include "offsetFile.h"
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
 #include <experimental/filesystem>
+#include "utils.h"
+#include "offsetFile.h"
 
 #define FILENAME_SIZE 0x130
 #define FILE_READ_SIZE 0x20000
@@ -40,31 +40,59 @@ int seek_files(FILE* f, uint64_t offset, FILE* arc) {
     return 0;
 }
 
+void minBackup(u64 modSize, u64 offset, FILE* arc) {
+
+    char* backup_path = new char[FILENAME_SIZE];
+    snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
+
+    if (fileExists(std::string(backup_path))) {
+        printf(CONSOLE_BLUE "Backup file 0x%lx.backup already exists\n" CONSOLE_RESET, offset);
+        delete[] backup_path;
+        return;
+    }
+
+    fseek(arc, offset, SEEK_SET);
+    char* buf = new char[modSize];
+    fread(buf, sizeof(char), modSize, arc);
+
+    FILE* backup = fopen(backup_path, "wb");
+    if (backup) fwrite(buf, sizeof(char), modSize, backup);
+    else printf(CONSOLE_RED "Attempted to create backup file '%s', failed to get backup file handle\n" CONSOLE_RESET, backup_path);
+    fclose(backup);
+    delete[] buf;
+    delete[] backup_path;
+    return;
+}
+
 int load_mod(const char* path, uint64_t offset, FILE* arc) {
     u64 compSize = 0;
     char* compBuf = nullptr;
     u64 realCompSize = 0;
     std::string pathStr(path);
-    if(offsetObj == nullptr && std::filesystem::exists(offsetDBPath)) {
-        printf("Parsing Offsets.txt\n");
-        consoleUpdate(NULL);
-        offsetObj = new offsetFile(offsetDBPath);
-    }
-    if(offsetObj != nullptr) {
-        printf("Looking up compression size in Offsets.txt\n");
-        consoleUpdate(NULL);
-        std::string arcPath = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
-        compSize = offsetObj->getCompSize(arcPath);
-        if(compSize == 0) printf("comp size not found\n");  // should never happen
-        u64 modSize = std::experimental::filesystem::file_size(path);
-        if(compSize != 0) {
-            if(compSize != modSize) {
+    u64 modSize = std::experimental::filesystem::file_size(path);
+
+    if(pathStr.substr(pathStr.find_last_of('/'), 3) != "/0x") {
+        if(offsetObj == nullptr && std::filesystem::exists(offsetDBPath)) {
+            printf("Parsing Offsets.txt\n");
+            consoleUpdate(NULL);
+            offsetObj = new offsetFile(offsetDBPath);
+        }
+        if(offsetObj != nullptr) {
+            printf("Looking up compression size in Offsets.txt\n");
+            consoleUpdate(NULL);
+            std::string arcPath = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
+            compSize = offsetObj->getCompSize(arcPath);
+            if(compSize != 0 && compSize != modSize) {
                 printf("Compressing...\n");
                 consoleUpdate(NULL);
                 compBuf = compressFile(path, compSize, realCompSize);
             }
-            //minBackup(compSize, offset, arc);
+            else printf("comp size not found\n");  // should never happen
         }
+    }
+    if(pathStr.find(backups_root) == std::string::npos) {
+        if(compSize > 0) minBackup(compSize, offset, arc);
+        else minBackup(modSize, offset, arc);
     }
     if(compBuf != nullptr) {
         u64 headerSize = ZSTD_frameHeaderSize(compBuf, compSize);
@@ -115,8 +143,8 @@ int load_mod(const char* path, uint64_t offset, FILE* arc) {
 
     return 0;
 }
-
-int create_backup(const char* mod_dir, char* filename, uint64_t offset, FILE* arc) {
+/*
+int create_backup(const char* mod_dir, char* filename, uint64_t offset, FILE* arc) {  // Not used
     char* backup_path = (char*) malloc(FILENAME_SIZE);
     char* mod_path = (char*) malloc(FILENAME_SIZE);
     snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
@@ -170,6 +198,7 @@ int create_backup(const char* mod_dir, char* filename, uint64_t offset, FILE* ar
 
     return 0;
 }
+*/
 
 #define UC(c) ((unsigned char)c)
 
@@ -262,7 +291,7 @@ int load_mods(FILE* f_arc) {
                         printf(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, dir->d_name);
                         consoleUpdate(NULL);
                     } else {
-                        create_backup(mod_dir.c_str(), dir->d_name, offset, f_arc);  // Needs to be done elsewhere
+                        //create_backup(mod_dir.c_str(), dir->d_name, offset, f_arc);  // Needs to be done elsewhere
 
                         std::string mod_file = std::string(manager_root) + mod_dir + "/" + dir->d_name;
                         load_mod(mod_file.c_str(), offset, f_arc);
