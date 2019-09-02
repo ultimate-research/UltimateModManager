@@ -1,5 +1,6 @@
 #pragma once
 #include <filesystem>
+#include <experimental/filesystem>
 #include "menu.h"
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
@@ -105,4 +106,15 @@ char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns po
   dataSize = ZSTD_compress(outBuff, compSize, inBuff, inSize, 22);
   delete[] inBuff;
   return outBuff;
+}
+
+void removeRecursive(std::experimental::filesystem::path path)
+{
+  if (std::experimental::filesystem::is_directory(path))
+  {
+    for (auto & child : std::experimental::filesystem::directory_iterator(path))
+      removeRecursive(child.path());
+  }
+
+  remove(path);
 }
