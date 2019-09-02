@@ -294,7 +294,9 @@ int load_mods(FILE* f_arc) {
                         //create_backup(mod_dir.c_str(), dir->d_name, offset, f_arc);  // Needs to be done elsewhere
 
                         std::string mod_file = std::string(manager_root) + mod_dir + "/" + dir->d_name;
+                        appletSetCpuBoostMode(ApmCpuBoostMode_Type1);
                         load_mod(mod_file.c_str(), offset, f_arc);
+                        appletSetCpuBoostMode(ApmCpuBoostMode_Disabled);
                         printf(CONSOLE_GREEN "%s/%s\n\n" CONSOLE_RESET, mod_dir.c_str(), dir->d_name);
                         consoleUpdate(NULL);
                     }
