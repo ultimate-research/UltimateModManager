@@ -326,9 +326,15 @@ int load_mods(FILE* f_arc) {
 
 void perform_installation() {
     std::string arc_path = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
-    FILE* f_arc = fopen(arc_path.c_str(), "r+b");
+    FILE* f_arc;
+    if(!std::filesystem::exists(arc_path)) {
+      printf(CONSOLE_RED "\nNo data.arc found!\n" CONSOLE_RESET);
+      printf("Please use the " CONSOLE_GREEN "Data Arc Dumper" CONSOLE_RESET " first.\n");
+      goto end;
+    }
+    f_arc = fopen(arc_path.c_str(), "r+b");
     if(!f_arc){
-        printf("Failed to get file handle to data.arc\n");
+        printf(CONSOLE_RED "Failed to get file handle to data.arc\n" CONSOLE_RESET);
         goto end;
     }
 
