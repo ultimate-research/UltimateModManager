@@ -82,12 +82,16 @@ int load_mod(const char* path, uint64_t offset, FILE* arc) {
             consoleUpdate(NULL);
             std::string arcPath = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
             compSize = offsetObj->getCompSize(arcPath);
-            if(compSize != 0 && compSize != modSize) {
-                printf("Compressing...\n");
-                consoleUpdate(NULL);
-                compBuf = compressFile(path, compSize, realCompSize);
+            if(compSize != modSize) {
+                if(compSize != 0) {
+                    printf("Compressing...\n");
+                    consoleUpdate(NULL);
+                    compBuf = compressFile(path, compSize, realCompSize);
+                }
+                // should never happen, only mods with an Offsets entry get here
+                else printf(CONSOLE_RED "comp size not found\n" CONSOLE_RESET);
             }
-            else printf("comp size not found\n");  // should never happen
+            else printf("No compression needed\n");
         }
     }
     if(pathStr.find(backups_root) == std::string::npos) {
