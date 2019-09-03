@@ -87,6 +87,11 @@ int load_mod(const char* path, uint64_t offset, FILE* arc) {
                     printf("Compressing...\n");
                     consoleUpdate(NULL);
                     compBuf = compressFile(path, compSize, realCompSize);
+                    if (compBuf == nullptr)
+                    {
+                        printf(CONSOLE_RED "Compression failed\n" CONSOLE_RESET);
+                        return -1;
+                    }
                 }
                 // should never happen, only mods with an Offsets entry get here
                 else printf(CONSOLE_RED "comp size not found\n" CONSOLE_RESET);
