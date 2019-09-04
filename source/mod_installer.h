@@ -15,7 +15,7 @@
 char** mod_dirs = NULL;
 size_t num_mod_dirs = 0;
 bool installation_finish = false;
-size_t mod_folder_index = 0;
+s64 mod_folder_index = 0;
 offsetFile* offsetObj = nullptr;
 
 const char* manager_root = "sdmc:/UltimateModManager/";
@@ -372,9 +372,6 @@ void modInstallerMainLoop(int kDown)
         else if (kDown & KEY_DUP || kDown & KEY_LSTICK_UP)
             mod_folder_index--;
 
-        if (mod_folder_index < 0)
-            mod_folder_index = 0;
-
         bool start_install = false;
         if (kDown & KEY_A)
             start_install = true;
@@ -385,7 +382,7 @@ void modInstallerMainLoop(int kDown)
         DIR* d = opendir(mods_root);
         struct dirent *dir;
         if (d) {
-            size_t curr_folder_index = 0;
+            s64 curr_folder_index = 0;
             while ((dir = readdir(d)) != NULL) {
                 std::string d_name = std::string(dir->d_name);
                 if(dir->d_type == DT_DIR) {
@@ -407,11 +404,13 @@ void modInstallerMainLoop(int kDown)
                 }
             }
 
-            if (mod_folder_index > curr_folder_index)
+            if (mod_folder_index < 0)
                 mod_folder_index = curr_folder_index;
 
+            if (mod_folder_index > curr_folder_index)
+                mod_folder_index = 0;
+
             if (mod_folder_index == curr_folder_index) {
-                mod_folder_index = curr_folder_index;
                 printf(CONSOLE_GREEN "> ");
                 if (start_install) {
                     found_dir = true;
