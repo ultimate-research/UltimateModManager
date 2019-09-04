@@ -45,7 +45,7 @@ void minBackup(u64 modSize, u64 offset, FILE* arc) {
     char* backup_path = new char[FILENAME_SIZE];
     snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
 
-    if (fileExists(std::string(backup_path))) {
+    if (fileExists(std::string(backup_path)) && modSize <= std::experimental::filesystem::file_size(backup_path)) {
         printf(CONSOLE_BLUE "Backup file 0x%lx.backup already exists\n" CONSOLE_RESET, offset);
         delete[] backup_path;
         return;
