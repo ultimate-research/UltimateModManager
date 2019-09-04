@@ -358,6 +358,15 @@ void modInstallerMainLoop(int kDown)
 {
     if (!installation_finish) {
         consoleClear();
+        u64 kHeld = hidKeysHeld(CONTROLLER_P1_AUTO);
+        if (kHeld & KEY_RSTICK_DOWN) {
+            svcSleepThread(7e+7);
+            mod_folder_index++;
+        }
+        if (kHeld & KEY_RSTICK_UP) {
+            svcSleepThread(7e+7);
+            mod_folder_index--;
+        }
         if (kDown & KEY_DDOWN || kDown & KEY_LSTICK_DOWN)
             mod_folder_index++;
         else if (kDown & KEY_DUP || kDown & KEY_LSTICK_UP)
