@@ -39,16 +39,23 @@ int seek_files(FILE* f, uint64_t offset, FILE* arc) {
 
     return 0;
 }
+// Forward declaration for use in minBackup()
+int load_mod(const char* path, uint64_t offset, FILE* arc);
 
 void minBackup(u64 modSize, u64 offset, FILE* arc) {
 
     char* backup_path = new char[FILENAME_SIZE];
     snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
 
-    if (fileExists(std::string(backup_path)) && modSize <= std::experimental::filesystem::file_size(backup_path)) {
-        printf(CONSOLE_BLUE "Backup file 0x%lx.backup already exists\n" CONSOLE_RESET, offset);
-        delete[] backup_path;
-        return;
+    if (fileExists(std::string(backup_path))) {
+        if(modSize > std::experimental::filesystem::file_size(backup_path)) {
+            load_mod(backup_path, offset, arc);
+        }
+        else {
+          printf(CONSOLE_BLUE "Backup file 0x%lx.backup already exists\n" CONSOLE_RESET, offset);
+          delete[] backup_path;
+          return;
+        }
     }
 
     fseek(arc, offset, SEEK_SET);
