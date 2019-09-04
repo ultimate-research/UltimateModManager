@@ -103,7 +103,7 @@ char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns po
   char* inBuff = new char[inSize];
   fread(inBuff, sizeof(char), inSize, inFile);
   fclose(inFile);
-  dataSize = ZSTD_compress(outBuff, compSize, inBuff, inSize, 22);
+  dataSize = ZSTD_compress(outBuff, compSize, inBuff, inSize, ZSTD_maxCLevel());
   if(ZSTD_isError(dataSize))
   {
     delete[] outBuff;
