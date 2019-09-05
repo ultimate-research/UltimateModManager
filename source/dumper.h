@@ -67,6 +67,8 @@ void copy(const char* from, const char* to, bool exfat = false)
       printf(CONSOLE_RED "\nNo applet mode.\nYou must override Smash for this application to work properly.\nHold 'R' while launching Smash to do so." CONSOLE_RESET);
       return;
     }
+    std::string backups = "/UltimateModManager/backups";
+    if(std::filesystem::exists(backups)) removeRecursive(backups);
     remove(outPath.c_str());
     romfsMountFromCurrentProcess("romfs");
     FILE* source = fopen(from, "rb");
@@ -222,8 +224,6 @@ void dumperMainLoop(int kDown) {
     if (kDown & KEY_Y && !dump_done) exfat = true;
     if ((kDown & KEY_A || kDown & KEY_Y) && !dump_done)
     {
-        std::string backups = "/UltimateModManager/backups";
-        if(std::filesystem::exists(backups)) removeRecursive(backups);
         printf("\nBeginning the dumping process...");
         consoleUpdate(NULL);
         u64 startTime = std::time(0);
