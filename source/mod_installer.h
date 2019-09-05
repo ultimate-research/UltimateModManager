@@ -17,6 +17,7 @@ size_t num_mod_dirs = 0;
 bool installation_finish = false;
 s64 mod_folder_index = 0;
 offsetFile* offsetObj = nullptr;
+ZSTD_CCtx* compContext = nullptr;
 
 const char* manager_root = "sdmc:/UltimateModManager/";
 const char* mods_root = "sdmc:/UltimateModManager/mods/";
@@ -38,6 +39,30 @@ int seek_files(FILE* f, uint64_t offset, FILE* arc) {
     }
 
     return 0;
+}
+
+char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns pointer to heap
+{
+  char* outBuff = new char[compSize];
+  FILE* inFile = fopen(path, "rb");
+  fseek(inFile, 0, SEEK_END);
+  u64 inSize = ftell(inFile);
+  fseek(inFile, 0, SEEK_SET);
+  char* inBuff = new char[inSize];
+  fread(inBuff, sizeof(char), inSize, inFile);
+  fclose(inFile);
+  int compLvl = ZSTD_maxCLevel();
+  if(compContext == nullptr) compContext = ZSTD_createCCtx();
+  do dataSize = ZSTD_compressCCtx(compContext, outBuff, compSize, inBuff, inSize, compLvl--);
+  while (ZSTD_isError(dataSize) && compLvl > 0 && strcmp(ZSTD_getErrorName(dataSize), "Destination buffer is too small") == 0);
+  //printf("Compression level: %d\n", compLvl+1);
+  if(ZSTD_isError(dataSize))
+  {
+    delete[] outBuff;
+    outBuff = nullptr;
+  }
+  delete[] inBuff;
+  return outBuff;
 }
 // Forward declaration for use in minBackup()
 int load_mod(const char* path, uint64_t offset, FILE* arc);
@@ -454,6 +479,10 @@ void modInstallerMainLoop(int kDown)
           if(offsetObj != nullptr) {
               delete offsetObj;
               offsetObj = nullptr;
+          }
+          if(compContext != nullptr) {
+            ZSTD_freeCCtx(compContext);
+            compContext = nullptr;
           }
           menu = MAIN_MENU;
           printMainMenu();

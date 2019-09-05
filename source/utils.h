@@ -2,8 +2,6 @@
 #include <filesystem>
 #include <experimental/filesystem>
 #include "menu.h"
-#define ZSTD_STATIC_LINKING_ONLY
-#include <zstd.h>
 
 bool isServiceRunning(const char *serviceName) {
   Handle handle;
@@ -91,29 +89,6 @@ void shortVibratePattern()
   vibrateFor(VibrationValue, VibrationDeviceHandle, 3.5e+8);
   svcSleepThread(5e+7);
   vibrateFor(VibrationValue, VibrationDeviceHandle, 3.5e+8);
-}
-
-char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns pointer to heap
-{
-  char* outBuff = new char[compSize];
-  FILE* inFile = fopen(path, "rb");
-  fseek(inFile, 0, SEEK_END);
-  u64 inSize = ftell(inFile);
-  fseek(inFile, 0, SEEK_SET);
-  char* inBuff = new char[inSize];
-  fread(inBuff, sizeof(char), inSize, inFile);
-  fclose(inFile);
-  int compLvl = ZSTD_maxCLevel();
-  do dataSize = ZSTD_compress(outBuff, compSize, inBuff, inSize, compLvl--);
-  while (ZSTD_isError(dataSize) && compLvl > 0 && strcmp(ZSTD_getErrorName(dataSize), "Destination buffer is too small") == 0);
-  //printf("Compression level: %d\n", compLvl+1);
-  if(ZSTD_isError(dataSize))
-  {
-    delete[] outBuff;
-    outBuff = nullptr;
-  }
-  delete[] inBuff;
-  return outBuff;
 }
 
 void removeRecursive(std::experimental::filesystem::path path)
