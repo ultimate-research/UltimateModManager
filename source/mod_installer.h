@@ -101,7 +101,9 @@ void minBackup(u64 modSize, u64 offset, FILE* arc) {
 }
 
 int load_mod(const char* path, uint64_t offset, FILE* arc) {
+    std::array<u64, 3> fileData;
     u64 compSize = 0;
+    u64 decompSize = 0;
     char* compBuf = nullptr;
     u64 realCompSize = 0;
     std::string pathStr(path);
@@ -117,8 +119,14 @@ int load_mod(const char* path, uint64_t offset, FILE* arc) {
             printf("Looking up compression size in Offsets.txt\n");
             consoleUpdate(NULL);
             std::string arcPath = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
-            compSize = offsetObj->getCompSize(arcPath);
-            if(compSize != modSize) {
+            fileData = offsetObj->getKey(arcPath);
+            compSize = fileData[1];
+            decompSize = fileData[2];
+            if(modSize > decompSize) {
+              printf("Mod can not be larger than expected uncompressed size\n");
+              return -1;
+            }
+            if(compSize != decompSize) {
                 if(compSize != 0) {
                     printf("Compressing...\n");
                     consoleUpdate(NULL);
