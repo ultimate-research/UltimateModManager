@@ -116,8 +116,8 @@ int load_mod(const char* path, uint64_t offset, FILE* arc) {
             offsetObj = new offsetFile(offsetDBPath);
         }
         if(offsetObj != nullptr) {
-            printf("Looking up compression size in Offsets.txt\n");
-            consoleUpdate(NULL);
+            //printf("Looking up compression size in Offsets.txt\n");
+            //consoleUpdate(NULL);
             std::string arcPath = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
             fileData = offsetObj->getKey(arcPath);
             compSize = fileData[1];
@@ -329,8 +329,8 @@ int load_mods(FILE* f_arc) {
                         offsetObj = new offsetFile(offsetDBPath);
                     }
                     if(offsetObj != nullptr) {
-                        printf("Trying to find offset in Offsets.txt\n");
-                        consoleUpdate(NULL);
+                        //printf("Trying to find offset in Offsets.txt\n");
+                        //consoleUpdate(NULL);
                         std::string arcFileName = (mod_dir.substr(mod_dir.find('/', mod_dir.find('/')+1) + 1) + "/" + dir->d_name);
                         offset = offsetObj->getOffset(arcFileName);
                     }
