@@ -51,11 +51,15 @@ char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns po
   char* inBuff = new char[inSize];
   fread(inBuff, sizeof(char), inSize, inFile);
   fclose(inFile);
-  int compLvl = ZSTD_maxCLevel();
+  int compLvl = 0;
   if(compContext == nullptr) compContext = ZSTD_createCCtx();
-  do dataSize = ZSTD_compressCCtx(compContext, outBuff, compSize, inBuff, inSize, compLvl--);
-  while (ZSTD_isError(dataSize) && compLvl > 0 && strcmp(ZSTD_getErrorName(dataSize), "Destination buffer is too small") == 0);
-  //printf("Compression level: %d\n", compLvl+1);
+  do
+  {
+    dataSize = ZSTD_compressCCtx(compContext, outBuff, compSize, inBuff, inSize, compLvl++);
+    if(compLvl==8) compLvl = 17;  // skip arbitrary amount of levels for speed.
+  }
+  while (ZSTD_isError(dataSize) && compLvl <= ZSTD_maxCLevel() && strcmp(ZSTD_getErrorName(dataSize), "Destination buffer is too small") == 0);
+  //printf("Compression level: %d\n", compLvl-1);
   if(ZSTD_isError(dataSize))
   {
     delete[] outBuff;
