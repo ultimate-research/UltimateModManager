@@ -41,6 +41,15 @@ int seek_files(FILE* f, uint64_t offset, FILE* arc) {
     return 0;
 }
 
+bool ZSTDFileIsFrame(const char* filePath) {
+  const size_t magicSize = 4;
+  unsigned char buf[magicSize];
+  FILE* file = fopen(filePath, "rb");
+  fread(buf, magicSize, sizeof(unsigned char), file);
+  fclose(file);
+  return ZSTD_isFrame(buf, magicSize);
+}
+
 char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns pointer to heap
 {
   char* outBuff = new char[compSize];
@@ -126,7 +135,7 @@ int load_mod(const char* path, uint64_t offset, FILE* arc) {
               printf("Mod can not be larger than expected uncompressed size\n");
               return -1;
             }
-            if(compSize != decompSize) {
+            if(compSize != decompSize && !ZSTDFileIsFrame(path)) {
                 if(compSize != 0) {
                     printf("Compressing...\n");
                     consoleUpdate(NULL);
