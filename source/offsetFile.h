@@ -12,6 +12,7 @@ public:
     std::string offset;
     std::string compSize;
     std::string decompSize;
+    getline(offsets, filename);  // first line has version info
     while(getline(offsets, filename, ',')) {
       getline(offsets, offset, ',');
       getline(offsets, compSize, ',');
