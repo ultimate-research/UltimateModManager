@@ -30,14 +30,22 @@ include $(DEVKITPRO)/libnx/switch_rules
 #     - icon.jpg
 #     - <libnx folder>/default_icon.jpg
 #---------------------------------------------------------------------------------
-VERSION_MAJOR := 0
-VERSION_MINOR := 1
-VERSION_MICRO := 0
+
+GITREV := $(shell git rev-parse HEAD 2>/dev/null)
+GITREV_SHORT := $(shell git rev-parse HEAD 2>/dev/null | cut -c1-8)
+LATESTTAG := $(shell git describe --tags $(shell git rev-list --tags --max-count=1 2>/dev/null) 2>/dev/null)
 
 APP_TITLE	:=	Ultimate Mod Manager
 APP_AUTHOR	:=	Genwald, jugeeya, jam1garner
-APP_VERSION	:=	${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_MICRO}
 ICON 	:= icon.jpg
+APP_VERSION	:=	${LATESTTAG}
+
+ifneq ($(strip $(GITREV)),)
+GITTAG := $(shell git describe --tags $(GITREV) 2>/dev/null)
+ifeq ($(strip $(GITTAG)),)
+APP_VERSION := $(APP_VERSION)-$(GITREV_SHORT)
+endif
+endif
 
 TARGET		:=	$(subst $e ,_,$(notdir $(APP_TITLE)))
 OUTDIR		:=	out
@@ -66,13 +74,13 @@ CXXFLAGS	:= $(CFLAGS) -fno-rtti -std=c++17
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-no-as-needed,-Map,$(notdir $*.map)
 
-LIBS	:= -lnx -lstdc++fs -lmbedcrypto
+LIBS	:= -lnx -lstdc++fs -lmbedcrypto -lzstd
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
 # include and lib
 #---------------------------------------------------------------------------------
-LIBDIRS	:= $(PORTLIBS) $(LIBNX)
+LIBDIRS	:= $(PORTLIBS) $(LIBNX) $(CURDIR)/libs
 
 
 #---------------------------------------------------------------------------------

@@ -24,7 +24,7 @@ void md5HashFromFile(std::string filename, unsigned char* out)
 
     if (inFile == NULL)
     {
-      printf ("\nThe data.arc file can not be opened.");
+      printf (CONSOLE_RED "\nThe data.arc file can not be opened." CONSOLE_RESET);
       return;
     }
     mbedtls_md5_init (&md5Context);
@@ -58,21 +58,23 @@ void copy(const char* from, const char* to, bool exfat = false)
 
     if(runningTID() != smashTID)
     {
-      printf("\nYou must override Smash for this application to work properly.\nHold 'R' while launching Smash to do so.");
+      printf(CONSOLE_RED "\nYou must override Smash for this application to work properly.\nHold 'R' while launching Smash to do so." CONSOLE_RESET);
       return;
     }
     AppletType at = appletGetAppletType();
     if (at != AppletType_Application && at != AppletType_SystemApplication)
     {
-      printf("\nNo applet mode.\nYou must override Smash for this application to work properly.\nHold 'R' while launching Smash to do so.");
+      printf(CONSOLE_RED "\nNo applet mode.\nYou must override Smash for this application to work properly.\nHold 'R' while launching Smash to do so." CONSOLE_RESET);
       return;
     }
+    std::string backups = "/UltimateModManager/backups";
+    if(std::filesystem::exists(backups)) removeRecursive(backups);
     remove(outPath.c_str());
     romfsMountFromCurrentProcess("romfs");
     FILE* source = fopen(from, "rb");
     if(source == nullptr)
     {
-      printf ("\nThe romfs could not be read.");
+      printf (CONSOLE_RED "\nThe romfs could not be read." CONSOLE_RESET);
       fclose(source);
       romfsUnmount("romfs");
 	    return;
@@ -83,18 +85,16 @@ void copy(const char* from, const char* to, bool exfat = false)
 
     if(std::filesystem::space(to).available < size)
     {
-      printf("\nNot enough storage space on the SD card.");
+      printf(CONSOLE_RED "\nNot enough storage space on the SD card." CONSOLE_RESET);
       fclose(source);
       romfsUnmount("romfs");
       return;
     }
     std::string folder(to);
     folder = folder.substr(0, folder.find_last_of("/"));
-    //todo: do this better
     if(!std::filesystem::exists(folder))
     {
-      mkdir(folder.substr(0, folder.find_last_of("/")).c_str(), 0744);
-      mkdir(folder.c_str(), 0744);
+      mkdirs(folder, 0744);
     }
     if(!exfat)
       fsdevCreateFile(to, 0, FS_CREATE_BIG_FILE);
@@ -102,7 +102,7 @@ void copy(const char* from, const char* to, bool exfat = false)
     FILE* dest = fopen(to, "wb");
     if(dest == nullptr)
     {
-      printf("\nCould not open the destination file.");
+      printf(CONSOLE_RED "\nCould not open the destination file." CONSOLE_RESET);
       fclose(dest);
       fclose(source);
       romfsUnmount("romfs");
@@ -115,7 +115,7 @@ void copy(const char* from, const char* to, bool exfat = false)
     size_t ret;
 
     if(size == 0)
-      printf("\nThere might be a problem with the data.arc file on your SD card. Please remove the file manually.");
+      printf(CONSOLE_RED "\nThere might be a problem with the data.arc file on your SD card. Please remove the file manually." CONSOLE_RESET);
     while(sizeWritten < size)
     {
       if(sizeWritten + bufSize > size)
@@ -176,7 +176,7 @@ void copy(const char* from, const char* to, bool exfat = false)
       ret = fwrite(buf, sizeof(char), bufSize, dest);
       if(ret != bufSize)
       {
-        printf("\nSomething went wrong!");
+        printf(CONSOLE_RED "\nSomething went wrong!" CONSOLE_RESET);
         fclose(dest);
         fclose(source);
         romfsUnmount("romfs");
@@ -201,22 +201,24 @@ void dumperMainLoop(int kDown) {
     {
         if(std::filesystem::exists(outPath))
         {
-        printf("\nBeginning hash generation...");
-        consoleUpdate(NULL);
-        unsigned char out[MD5_DIGEST_LENGTH];
-        u64 startTime = std::time(0);
-        // Should I block home button here too?
-        appletSetMediaPlaybackState(true);
-        md5HashFromFile(outPath, out);
-        appletSetMediaPlaybackState(false);
-        u64 endTime = std::time(0);
-        printf("\nmd5:");
-        for(int i = 0; i < MD5_DIGEST_LENGTH; i++) printf("%02x", out[i]);
-        printf("\nHashing took %.2f minutes", (float)(endTime - startTime)/60);
+          printf("\nBeginning hash generation...");
+          consoleUpdate(NULL);
+          unsigned char out[MD5_DIGEST_LENGTH];
+          u64 startTime = std::time(0);
+          // Should I block home button here too?
+          appletSetMediaPlaybackState(true);
+          md5HashFromFile(outPath, out);
+          appletSetMediaPlaybackState(false);
+          u64 endTime = std::time(0);
+          printf("\nmd5:");
+          for(int i = 0; i < MD5_DIGEST_LENGTH; i++) printf("%02x", out[i]);
+          printf("\nHashing took %.2f minutes", (float)(endTime - startTime)/60);
+          consoleUpdate(NULL);
+          shortVibratePattern();
         }
         else
         {
-        printf("\nNo data.arc file found on the SD card.");
+          printf(CONSOLE_RED "\nNo data.arc file found on the SD card." CONSOLE_RESET);
         }
     }
     if (kDown & KEY_Y && !dump_done) exfat = true;
@@ -236,6 +238,8 @@ void dumperMainLoop(int kDown) {
         printf("\nCompleted in %.2f minutes.", (float)(endTime - startTime)/60);
         printf("\nOptional: Press 'X' generate an MD5 hash of the file");
         printf("\nPress B to return to the main menu.\n");
+        consoleUpdate(NULL);
+        shortVibratePattern();
     }
 
     if (kDown & KEY_B) {
