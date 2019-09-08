@@ -12,6 +12,11 @@
 #define FILENAME_SIZE 0x130
 #define FILE_READ_SIZE 0x20000
 
+#define INSTALL false
+#define UNINSTALL true
+
+bool installing = INSTALL;
+
 char** mod_dirs = NULL;
 size_t num_mod_dirs = 0;
 bool installation_finish = false;
@@ -353,14 +358,25 @@ int load_mods(FILE* f_arc) {
                         printf(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, dir->d_name);
                         consoleUpdate(NULL);
                     } else {
-                        //create_backup(mod_dir.c_str(), dir->d_name, offset, f_arc);  // Needs to be done elsewhere
-
                         std::string mod_file = std::string(manager_root) + mod_dir + "/" + dir->d_name;
-                        appletSetCpuBoostMode(ApmCpuBoostMode_Type1);
-                        load_mod(mod_file.c_str(), offset, f_arc);
-                        appletSetCpuBoostMode(ApmCpuBoostMode_Disabled);
-                        printf(CONSOLE_GREEN "%s/%s\n\n" CONSOLE_RESET, mod_dir.c_str(), dir->d_name);
-                        consoleUpdate(NULL);
+                        if (installing == INSTALL) {
+                            appletSetCpuBoostMode(ApmCpuBoostMode_Type1);
+                            load_mod(mod_file.c_str(), offset, f_arc);
+                            appletSetCpuBoostMode(ApmCpuBoostMode_Disabled);
+                            printf(CONSOLE_GREEN "%s/%s\n\n" CONSOLE_RESET, mod_dir.c_str(), dir->d_name);
+                            consoleUpdate(NULL);
+                        } else if (installing == UNINSTALL) {
+                            char* backup_path = (char*) malloc(FILENAME_SIZE);
+                            snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
+
+                            if(std::filesystem::exists(backup_path)) {
+                                load_mod(backup_path, offset, f_arc);
+                                remove(backup_path);
+                                printf(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, mod_file.c_str());
+                            }
+                            else printf(CONSOLE_RED "No backup found\n\n" CONSOLE_RESET);
+                            free(backup_path);
+                        }
                     }
                 } else {
                     printf(CONSOLE_RED "Found file '%s', offset not parsable\n" CONSOLE_RESET, dir->d_name);
@@ -390,8 +406,10 @@ void perform_installation() {
         printf(CONSOLE_RED "Failed to get file handle to data.arc\n" CONSOLE_RESET);
         goto end;
     }
-
-    printf("\nInstalling mods...\n\n");
+    if (installing == INSTALL)
+        printf("\nInstalling mods...\n\n");
+    else if (installing == UNINSTALL)
+        printf("\nUninstalling mods...\n\n");
     consoleUpdate(NULL);
     while (num_mod_dirs > 0) {
         consoleUpdate(NULL);
@@ -426,11 +444,17 @@ void modInstallerMainLoop(int kDown)
             mod_folder_index--;
 
         bool start_install = false;
-        if (kDown & KEY_A)
+        if (kDown & KEY_A) {
             start_install = true;
+            installing = INSTALL;
+        }
+        else if (kDown & KEY_Y) {
+            start_install = true;
+            installing = UNINSTALL;
+        }
         bool found_dir = false;
 
-        printf("Please select a mods folder below to install.\n\n");
+        printf("Please select a mods folder. Press A to install, Y to uninstall.\n\n");
 
         DIR* d = opendir(mods_root);
         struct dirent *dir;
