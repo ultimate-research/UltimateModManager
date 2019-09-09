@@ -16,6 +16,7 @@
 #define UNINSTALL true
 
 bool installing = INSTALL;
+bool deleteMod = false;
 
 char** mod_dirs = NULL;
 size_t num_mod_dirs = 0;
@@ -394,6 +395,7 @@ int load_mods(FILE* f_arc) {
 }
 
 void perform_installation() {
+    std::string rootModDir = std::string(manager_root) + mod_dirs[num_mod_dirs-1];
     std::string arc_path = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
     FILE* f_arc;
     if(!std::filesystem::exists(arc_path)) {
@@ -417,8 +419,11 @@ void perform_installation() {
     }
 
     free(mod_dirs);
-
     fclose(f_arc);
+    if (deleteMod) {
+      printf("Deleting mod files\n");
+      fsdevDeleteDirectoryRecursively(rootModDir.c_str());
+    }
 
 end:
     printf("Mod Installer finished.\nPress B to return to the Mod Installer.\n");
@@ -444,7 +449,14 @@ void modInstallerMainLoop(int kDown)
             mod_folder_index--;
 
         bool start_install = false;
-        if (kDown & KEY_A) {
+        deleteMod = false;
+        if(kDown & KEY_L && kDown & KEY_R && kDown & KEY_Y) {
+          printf("del\n");
+          deleteMod = true;
+          start_install = true;
+          installing = UNINSTALL;
+        }
+        else if (kDown & KEY_A) {
             start_install = true;
             installing = INSTALL;
         }
