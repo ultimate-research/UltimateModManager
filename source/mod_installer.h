@@ -494,7 +494,7 @@ void modInstallerMainLoop(int kDown)
                             add_mod_dir(directory.c_str());
                         }
                     }
-                    printf("%s\n", dir->d_name);
+                    if(curr_folder_index < 42 || curr_folder_index <= mod_folder_index) printf("%s\n", dir->d_name);
                     if (curr_folder_index == mod_folder_index)
                         printf(CONSOLE_RESET);
                     curr_folder_index++;
@@ -515,7 +515,7 @@ void modInstallerMainLoop(int kDown)
                 }
             }
 
-            printf("backups\n");
+            if(curr_folder_index < 42 || curr_folder_index <= mod_folder_index) printf("backups\n");
 
             if (mod_folder_index == curr_folder_index)
                 printf(CONSOLE_RESET);
