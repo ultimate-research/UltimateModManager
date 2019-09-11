@@ -40,28 +40,21 @@ APP_AUTHOR	:=	Genwald, jugeeya, jam1garner
 ICON 	:= icon.jpg
 APP_VERSION	:=	${LATESTTAG}
 
-ifneq ($(strip $(GITREV)),)
-GITTAG := $(shell git describe --tags $(GITREV) 2>/dev/null)
-ifeq ($(strip $(GITTAG)),)
-APP_VERSION := $(APP_VERSION)-$(GITREV_SHORT)
-endif
-endif
-
-TARGET		:=	$(subst $e ,_,$(notdir $(APP_TITLE)))
-OUTDIR		:=	out
-BUILD		:=	build
-SOURCES		:=	source
-DATA		:=	data
-INCLUDES	:=	include
+# ICON := Icon.jpg
+TARGET		:=  $(subst $e ,_,$(notdir $(APP_TITLE)))
+BUILD		:=	Build
+SOURCES		:=	Source
+DATA		:=	Bin
+INCLUDES	:=	Include
 EXEFS_SRC	:=	exefs_src
-#ROMFS	:=	romfs
+# ROMFS		:=	RomFs
 
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
 ARCH	:=	-march=armv8-a -mtune=cortex-a57 -mtp=soft -fPIE
 
-CFLAGS	:=	-g -Wall -O3 -ffunction-sections \
+CFLAGS	:=	-g -O2 -fpermissive -ffunction-sections -w \
 			$(ARCH) $(DEFINES) \
 			-DVERSION_MAJOR=${VERSION_MAJOR} \
 			-DVERSION_MINOR=${VERSION_MINOR} \
@@ -69,18 +62,20 @@ CFLAGS	:=	-g -Wall -O3 -ffunction-sections \
 
 CFLAGS	+=	$(INCLUDE) -D__SWITCH__ -DSTATUS_STRING="\"ftpd v$(APP_VERSION)\""
 
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -std=c++17
+CXXFLAGS	:= $(CFLAGS) -fexceptions -std=c++17 -fno-rtti
 
 ASFLAGS	:=	-g $(ARCH)
-LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-no-as-needed,-Map,$(notdir $*.map)
+LDFLAGS	=	-specs=${DEVKITPRO}/libnx/switch.specs -g $(ARCH) -Wl,-no-as-needed,-Map,$(notdir $*.map)
 
-LIBS	:= -lnx -lstdc++fs -lmbedcrypto -lzstd
+LIBS	:= -lpu -lfreetype -lSDL2_mixer -lopusfile -lopus -lmodplug -lmpg123 -lvorbisidec -logg -lSDL2_ttf -lSDL2_gfx -lSDL2_image -lSDL2 -lEGL -lGLESv2 -lglapi -ldrm_nouveau -lwebp -lpng -ljpeg `sdl2-config --libs` `freetype-config --libs` -lnx  -lstdc++fs -lmbedcrypto -lzstd
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
 # include and lib
 #---------------------------------------------------------------------------------
-LIBDIRS	:= $(PORTLIBS) $(LIBNX) $(CURDIR)/libs
+
+# IMPORTANT! Change "$(CURDIR)/../../Plutonium/Output" to the path in which you have Plutonium libs.
+LIBDIRS	:= $(PORTLIBS) $(LIBNX) $(CURDIR)/Plutonium/ $(CURDIR)/libs
 
 
 #---------------------------------------------------------------------------------
@@ -165,13 +160,13 @@ endif
 all: $(BUILD)
 
 $(BUILD):
-	@[ -d $@ ] || mkdir -p $@ $(BUILD) $(CURDIR)
+	@[ -d $@ ] || mkdir -p $@
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(OUTDIR)
+	@rm -fr $(BUILD) $(TARGET).pfs0 $(TARGET).nso $(TARGET).nro $(TARGET).nacp $(TARGET).elf
 
 
 #---------------------------------------------------------------------------------
@@ -202,13 +197,7 @@ $(OFILES_SRC)	: $(HFILES_BIN)
 #---------------------------------------------------------------------------------
 # you need a rule like this for each extension you use as binary data
 #---------------------------------------------------------------------------------
-%.bin.o	:	%.bin
-#---------------------------------------------------------------------------------
-	@echo $(notdir $<)
-	@$(bin2o)
-
-#---------------------------------------------------------------------------------
-%.nxfnt.o	:	%.nxfnt
+%.bin.o	%_bin.h :	%.bin
 #---------------------------------------------------------------------------------
 	@echo $(notdir $<)
 	@$(bin2o)

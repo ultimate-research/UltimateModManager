@@ -1,8 +1,5 @@
 #pragma once
 #include <switch.h>
-extern "C" {
-#include "console.h"
-}
 
 #define MAIN_MENU 0
 #define MOD_INSTALLER_MENU 1
@@ -11,10 +8,10 @@ extern "C" {
 
 int menu = MAIN_MENU;
 
-void printMainMenu() {
-    consoleClear();
-    console_set_status("\n" GREEN "Ultimate Mod Manager" RESET);
-    printf("\n\nPress 'Y' to go to the Mod Installer");
-    printf("\nPress 'X' to go to the Data Arc Dumper");
-    printf("\nPress 'A' to go to the FTP Server");
-}
+// void printMainMenu() {
+//     consoleClear();
+//     printf("\n" CONSOLE_GREEN "Ultimate Mod Manager" CONSOLE_RESET);
+//     printf("\n\nPress 'Y' to go to the Mod Installer");
+//     printf("\nPress 'X' to go to the Data Arc Dumper");
+//     printf("\nPress 'A' to go to the FTP Server");
+// }

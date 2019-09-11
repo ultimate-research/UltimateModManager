@@ -1,8 +1,11 @@
+#pragma once
 #include <switch.h>
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
+#include <MainApplication.hpp>
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
 #include <experimental/filesystem>
@@ -14,6 +17,13 @@
 
 #define INSTALL false
 #define UNINSTALL true
+
+// Short-term Overrides
+#define CONSOLE_BLUE ""
+#define CONSOLE_RED ""
+#define CONSOLE_GREEN ""
+#define CONSOLE_YELLOW ""
+#define CONSOLE_RESET ""
 
 bool installing = INSTALL;
 
@@ -29,17 +39,29 @@ const char* mods_root = "sdmc:/UltimateModManager/mods/";
 const char* backups_root = "sdmc:/UltimateModManager/backups/";
 const char* offsetDBPath = "sdmc:/UltimateModManager/Offsets.txt";
 
+std::shared_ptr<MainApplication> _main;
+
+void _printf(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+
+    char buffer[1024];
+    vsnprintf(buffer, 1024, fmt, args);
+
+    _main->layout1->helloText->SetText(_main->layout1->helloText->GetText() + buffer);
+}
+
 int seek_files(FILE* f, uint64_t offset, FILE* arc) {
     // Set file pointers to start of file and offset respectively
     int ret = fseek(f, 0, SEEK_SET);
     if (ret) {
-        printf(CONSOLE_RED "Failed to seek file with errno %d\n" CONSOLE_RESET, ret);
+        _printf(CONSOLE_RED "Failed to seek file with errno %d\n" CONSOLE_RESET, ret);
         return ret;
     }
 
     ret = fseek(arc, offset, SEEK_SET);
     if (ret) {
-        printf(CONSOLE_RED "Failed to seek offset %lx from start of data.arc with errno %d\n" CONSOLE_RESET, offset, ret);
+        _printf(CONSOLE_RED "Failed to seek offset %lx from start of data.arc with errno %d\n" CONSOLE_RESET, offset, ret);
         return ret;
     }
 
@@ -95,7 +117,7 @@ void minBackup(u64 modSize, u64 offset, FILE* arc) {
             load_mod(backup_path, offset, arc);
         }
         else {
-          printf(CONSOLE_BLUE "Backup file 0x%lx.backup already exists\n" CONSOLE_RESET, offset);
+          _printf(CONSOLE_BLUE "Backup file 0x%lx.backup already exists\n" CONSOLE_RESET, offset);
           delete[] backup_path;
           return;
         }
@@ -107,7 +129,7 @@ void minBackup(u64 modSize, u64 offset, FILE* arc) {
 
     FILE* backup = fopen(backup_path, "wb");
     if (backup) fwrite(buf, sizeof(char), modSize, backup);
-    else printf(CONSOLE_RED "Attempted to create backup file '%s', failed to get backup file handle\n" CONSOLE_RESET, backup_path);
+    else _printf(CONSOLE_RED "Attempted to create backup file '%s', failed to get backup file handle\n" CONSOLE_RESET, backup_path);
     fclose(backup);
     delete[] buf;
     delete[] backup_path;
@@ -125,36 +147,36 @@ int load_mod(const char* path, uint64_t offset, FILE* arc) {
 
     if(pathStr.substr(pathStr.find_last_of('/'), 3) != "/0x") {
         if(offsetObj == nullptr && std::filesystem::exists(offsetDBPath)) {
-            printf("Parsing Offsets.txt\n");
-            consoleUpdate(NULL);
+            _printf("Parsing Offsets.txt\n");
+            
             offsetObj = new offsetFile(offsetDBPath);
         }
         if(offsetObj != nullptr) {
-            //printf("Looking up compression size in Offsets.txt\n");
-            //consoleUpdate(NULL);
+            //_printf("Looking up compression size in Offsets.txt\n");
+            //
             std::string arcPath = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
             fileData = offsetObj->getKey(arcPath);
             compSize = fileData[1];
             decompSize = fileData[2];
             if(modSize > decompSize) {
-              printf("Mod can not be larger than expected uncompressed size\n");
+              _printf("Mod can not be larger than expected uncompressed size\n");
               return -1;
             }
             if(compSize != decompSize && !ZSTDFileIsFrame(path)) {
                 if(compSize != 0) {
-                    printf("Compressing...\n");
-                    consoleUpdate(NULL);
+                    _printf("Compressing...\n");
+                    
                     compBuf = compressFile(path, compSize, realCompSize);
                     if (compBuf == nullptr)
                     {
-                        printf(CONSOLE_RED "Compression failed\n" CONSOLE_RESET);
+                        _printf(CONSOLE_RED "Compression failed\n" CONSOLE_RESET);
                         return -1;
                     }
                 }
                 // should never happen, only mods with an Offsets entry get here
-                else printf(CONSOLE_RED "comp size not found\n" CONSOLE_RESET);
+                else _printf(CONSOLE_RED "comp size not found\n" CONSOLE_RESET);
             }
-            else printf("No compression needed\n");
+            else _printf("No compression needed\n");
         }
     }
     if(pathStr.find(backups_root) == std::string::npos) {
@@ -203,7 +225,7 @@ int load_mod(const char* path, uint64_t offset, FILE* arc) {
 
             fclose(f);
         } else {
-            printf(CONSOLE_RED "Found file '%s', failed to get file handle\n" CONSOLE_RESET, path);
+            _printf(CONSOLE_RED "Found file '%s', failed to get file handle\n" CONSOLE_RESET, path);
             return -1;
         }
     }
@@ -218,7 +240,7 @@ int create_backup(const char* mod_dir, char* filename, uint64_t offset, FILE* ar
     snprintf(mod_path, FILENAME_SIZE, "%s%s/%s", manager_root, mod_dir, filename);
 
     if (fileExists(std::string(backup_path))) {
-        printf(CONSOLE_BLUE "Backup file 0x%lx.backup already exists\n" CONSOLE_RESET, offset);
+        _printf(CONSOLE_BLUE "Backup file 0x%lx.backup already exists\n" CONSOLE_RESET, offset);
         free(backup_path);
         free(mod_path);
         return 0;
@@ -254,10 +276,10 @@ int create_backup(const char* mod_dir, char* filename, uint64_t offset, FILE* ar
         fclose(mod);
     } else {
         if (backup) fclose(backup);
-        else printf(CONSOLE_RED "Attempted to create backup file '%s', failed to get backup file handle\n" CONSOLE_RESET, backup_path);
+        else _printf(CONSOLE_RED "Attempted to create backup file '%s', failed to get backup file handle\n" CONSOLE_RESET, backup_path);
 
         if (mod) fclose(mod);
-        else printf(CONSOLE_RED "Attempted to create backup file '%s', failed to get mod file handle '%s'\n" CONSOLE_RESET, backup_path, mod_path);
+        else _printf(CONSOLE_RED "Attempted to create backup file '%s', failed to get mod file handle '%s'\n" CONSOLE_RESET, backup_path, mod_path);
     }
 
     free(backup_path);
@@ -320,8 +342,8 @@ int load_mods(FILE* f_arc) {
     DIR *d;
     struct dirent *dir;
 
-    printf("Searching mod dir " CONSOLE_YELLOW "%s\n\n" CONSOLE_RESET, mod_dir.c_str());
-    consoleUpdate(NULL);
+    _printf("Searching mod dir " CONSOLE_YELLOW "%s\n\n" CONSOLE_RESET, mod_dir.c_str());
+    //_main->CallForRender();
 
     std::string abs_mod_dir = std::string(manager_root) + mod_dir;
     d = opendir(abs_mod_dir.c_str());
@@ -338,13 +360,13 @@ int load_mods(FILE* f_arc) {
                 uint64_t offset = hex_to_u64(dir->d_name);
                 if(!offset) {
                     if(offsetObj == nullptr && std::filesystem::exists(offsetDBPath)) {
-                        printf("Parsing Offsets.txt\n");
-                        consoleUpdate(NULL);
+                        _printf("Parsing Offsets.txt\n");
+                        //_main->CallForRender();
                         offsetObj = new offsetFile(offsetDBPath);
                     }
                     if(offsetObj != nullptr) {
-                        //printf("Trying to find offset in Offsets.txt\n");
-                        //consoleUpdate(NULL);
+                        //_printf("Trying to find offset in Offsets.txt\n");
+                        //
                         std::string arcFileName = (mod_dir.substr(mod_dir.find('/', mod_dir.find('/')+1) + 1) + "/" + dir->d_name);
                         offset = offsetObj->getOffset(arcFileName);
                     }
@@ -355,16 +377,16 @@ int load_mods(FILE* f_arc) {
                         load_mod(backup_file.c_str(), offset, f_arc);
 
                         remove(backup_file.c_str());
-                        printf(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, dir->d_name);
-                        consoleUpdate(NULL);
+                        _printf(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, dir->d_name);
+                        //_main->CallForRender();
                     } else {
                         std::string mod_file = std::string(manager_root) + mod_dir + "/" + dir->d_name;
                         if (installing == INSTALL) {
                             appletSetCpuBoostMode(ApmCpuBoostMode_Type1);
                             load_mod(mod_file.c_str(), offset, f_arc);
                             appletSetCpuBoostMode(ApmCpuBoostMode_Disabled);
-                            printf(CONSOLE_GREEN "%s/%s\n\n" CONSOLE_RESET, mod_dir.c_str(), dir->d_name);
-                            consoleUpdate(NULL);
+                            _printf(CONSOLE_GREEN "%s/%s\n\n" CONSOLE_RESET, mod_dir.c_str(), dir->d_name);
+                            //_main->CallForRender();
                         } else if (installing == UNINSTALL) {
                             char* backup_path = (char*) malloc(FILENAME_SIZE);
                             snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
@@ -372,22 +394,23 @@ int load_mods(FILE* f_arc) {
                             if(std::filesystem::exists(backup_path)) {
                                 load_mod(backup_path, offset, f_arc);
                                 remove(backup_path);
-                                printf(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, mod_file.c_str());
+                                _printf(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, mod_file.c_str());
                             }
-                            else printf(CONSOLE_RED "No backup found\n\n" CONSOLE_RESET);
+                            else _printf(CONSOLE_RED "No backup found\n\n" CONSOLE_RESET);
                             free(backup_path);
+                            //_main->CallForRender();
                         }
                     }
                 } else {
-                    printf(CONSOLE_RED "Found file '%s', offset not parsable\n" CONSOLE_RESET, dir->d_name);
-                    consoleUpdate(NULL);
+                    _printf(CONSOLE_RED "Found file '%s', offset not parsable\n" CONSOLE_RESET, dir->d_name);
+                    //_main->CallForRender();
                 }
             }
         }
         closedir(d);
     } else {
-        printf(CONSOLE_RED "Failed to open mod directory '%s'\n" CONSOLE_RESET, abs_mod_dir.c_str());
-        consoleUpdate(NULL);
+        _printf(CONSOLE_RED "Failed to open mod directory '%s'\n" CONSOLE_RESET, abs_mod_dir.c_str());
+        //_main->CallForRender();
     }
 
     return 0;
@@ -397,22 +420,22 @@ void perform_installation() {
     std::string arc_path = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
     FILE* f_arc;
     if(!std::filesystem::exists(arc_path)) {
-      printf(CONSOLE_RED "\nNo data.arc found!\n" CONSOLE_RESET);
-      printf("Please use the " CONSOLE_GREEN "Data Arc Dumper" CONSOLE_RESET " first.\n");
+      _printf(CONSOLE_RED "\nNo data.arc found!\n" CONSOLE_RESET);
+      _printf("Please use the " CONSOLE_GREEN "Data Arc Dumper" CONSOLE_RESET " first.\n");
       goto end;
     }
     f_arc = fopen(arc_path.c_str(), "r+b");
     if(!f_arc){
-        printf(CONSOLE_RED "Failed to get file handle to data.arc\n" CONSOLE_RESET);
+        _printf(CONSOLE_RED "Failed to get file handle to data.arc\n" CONSOLE_RESET);
         goto end;
     }
     if (installing == INSTALL)
-        printf("\nInstalling mods...\n\n");
+        _printf("\nInstalling mods...\n\n");
     else if (installing == UNINSTALL)
-        printf("\nUninstalling mods...\n\n");
-    consoleUpdate(NULL);
+        _printf("\nUninstalling mods...\n\n");
+    
     while (num_mod_dirs > 0) {
-        consoleUpdate(NULL);
+        _main->layout1->helloText->OnRender();
         load_mods(f_arc);
     }
 
@@ -421,119 +444,7 @@ void perform_installation() {
     fclose(f_arc);
 
 end:
-    printf("Mod Installer finished.\nPress B to return to the Mod Installer.\n");
-    printf("Press X to launch Smash\n\n");
-}
-
-void modInstallerMainLoop(int kDown)
-{
-    if (!installation_finish) {
-        consoleClear();
-        u64 kHeld = hidKeysHeld(CONTROLLER_P1_AUTO);
-        if (kHeld & KEY_RSTICK_DOWN) {
-            svcSleepThread(7e+7);
-            mod_folder_index++;
-        }
-        if (kHeld & KEY_RSTICK_UP) {
-            svcSleepThread(7e+7);
-            mod_folder_index--;
-        }
-        if (kDown & KEY_DDOWN || kDown & KEY_LSTICK_DOWN)
-            mod_folder_index++;
-        else if (kDown & KEY_DUP || kDown & KEY_LSTICK_UP)
-            mod_folder_index--;
-
-        bool start_install = false;
-        if (kDown & KEY_A) {
-            start_install = true;
-            installing = INSTALL;
-        }
-        else if (kDown & KEY_Y) {
-            start_install = true;
-            installing = UNINSTALL;
-        }
-        bool found_dir = false;
-
-        printf("Please select a mods folder. Press A to install, Y to uninstall.\n\n");
-
-        DIR* d = opendir(mods_root);
-        struct dirent *dir;
-        if (d) {
-            s64 curr_folder_index = 0;
-            while ((dir = readdir(d)) != NULL) {
-                std::string d_name = std::string(dir->d_name);
-                if(dir->d_type == DT_DIR) {
-                    if (d_name == "." || d_name == "..")
-                        continue;
-                    std::string directory = "mods/" + d_name;
-
-                    if (curr_folder_index == mod_folder_index) {
-                        printf("%s> ", CONSOLE_GREEN);
-                        if (start_install) {
-                            found_dir = true;
-                            add_mod_dir(directory.c_str());
-                        }
-                    }
-                    printf("%s\n", dir->d_name);
-                    if (curr_folder_index == mod_folder_index)
-                        printf(CONSOLE_RESET);
-                    curr_folder_index++;
-                }
-            }
-
-            if (mod_folder_index < 0)
-                mod_folder_index = curr_folder_index;
-
-            if (mod_folder_index > curr_folder_index)
-                mod_folder_index = 0;
-
-            if (mod_folder_index == curr_folder_index) {
-                printf(CONSOLE_GREEN "> ");
-                if (start_install) {
-                    found_dir = true;
-                    add_mod_dir("backups");
-                }
-            }
-
-            printf("backups\n");
-
-            if (mod_folder_index == curr_folder_index)
-                printf(CONSOLE_RESET);
-
-            closedir(d);
-        } else {
-            printf(CONSOLE_RED "%s folder not found\n\n" CONSOLE_RESET, mods_root);
-        }
-
-        consoleUpdate(NULL);
-        if (start_install && found_dir) {
-            mkdir(backups_root, 0777);
-            perform_installation();
-            installation_finish = true;
-            mod_dirs = NULL;
-            num_mod_dirs = 0;
-        }
-    }
-
-    if (kDown & KEY_B) {
-        if (installation_finish) {
-          installation_finish = false;
-          consoleClear();
-        }
-        else {
-          if(offsetObj != nullptr) {
-              delete offsetObj;
-              offsetObj = nullptr;
-          }
-          if(compContext != nullptr) {
-            ZSTD_freeCCtx(compContext);
-            compContext = nullptr;
-          }
-          menu = MAIN_MENU;
-          printMainMenu();
-        }
-    }
-    if(kDown & KEY_X) {
-        appletRequestLaunchApplication(0x01006A800016E000, NULL);
-    }
+    _printf("Mod Installer finished.\nPress B to return to the Mod Installer.\n");
+    _printf("Press X to launch Smash\n\n");
+    installation_finish = true;
 }
