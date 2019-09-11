@@ -42,7 +42,7 @@ APP_VERSION	:=	${LATESTTAG}
 
 ifneq ($(strip $(GITREV)),)
 GITTAG := $(shell git describe --tags $(GITREV) 2>/dev/null)
-ifeq ($(strip $(GITTAG)),)
+ifneq ($(strip $(GITTAG)),$(strip $(LATESTTAG)))
 APP_VERSION := $(APP_VERSION)-$(GITREV_SHORT)
 endif
 endif
