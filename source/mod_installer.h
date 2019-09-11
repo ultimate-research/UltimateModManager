@@ -58,7 +58,9 @@ bool ZSTDFileIsFrame(const char* filePath) {
 
 char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns pointer to heap
 {
-  char* outBuff = new char[compSize];
+  // Use a buffer larger than compSize to avoid errors when dataSize is near compSize
+  u64 bufSize = compSize + 32;
+  char* outBuff = new char[bufSize];
   FILE* inFile = fopen(path, "rb");
   fseek(inFile, 0, SEEK_END);
   u64 inSize = ftell(inFile);
@@ -73,17 +75,19 @@ char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns po
   do
   {
     params.cParams = ZSTD_getCParams(compLvl++, inSize, 0);
-    dataSize = ZSTD_compress_advanced(compContext, outBuff, compSize, inBuff, inSize, nullptr, 0, params);
+    dataSize = ZSTD_compress_advanced(compContext, outBuff, bufSize, inBuff, inSize, nullptr, 0, params);
     if(compLvl==8) compLvl = 17;  // skip arbitrary amount of levels for speed.
   }
-  while (ZSTD_isError(dataSize) && compLvl <= ZSTD_maxCLevel() && strcmp(ZSTD_getErrorName(dataSize), "Destination buffer is too small") == 0);
+  while ((dataSize > compSize || ZSTD_isError(dataSize)) && compLvl <= ZSTD_maxCLevel());
   //printf("Compression level: %d\n", compLvl-1);
-  if(ZSTD_isError(dataSize))
+  if(dataSize > compSize || ZSTD_isError(dataSize))
   {
     delete[] outBuff;
     outBuff = nullptr;
   }
   //else printf("compressed size: %lX\n", dataSize);
+  //FILE* f = fopen("/test","wb");
+  //fwrite(outBuff, 1, compSize, f);
   delete[] inBuff;
   return outBuff;
 }
