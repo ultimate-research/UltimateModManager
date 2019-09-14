@@ -6,7 +6,7 @@
 Layout1::Layout1()
 {
     // Create the textblock with the text we want
-    this->helloText = pu::ui::elm::ScrollableTextBlock::New(0, 0, "", 25, true);
+    this->helloText = pu::ui::elm::ScrollableTextBlock::New(0, 0, "", 25, false);
     // Add the textblock to the layout's element container. IMPORTANT! this MUST be done, having them as members is not enough (just a simple way to keep them)
     this->Add(this->helloText);
 }
@@ -60,7 +60,7 @@ void MainApplication::modInstallerMain(u64 kDown, u64 kUp, u64 kHeld, bool Touch
 
         this->layout1->textOverlays.clear();
         this->layout1->Clear();
-        this->layout1->helloText = pu::ui::elm::ScrollableTextBlock::New(0, 0, "", 25, true);
+        this->layout1->helloText = pu::ui::elm::ScrollableTextBlock::New(0, 0, "", 25, false);
         textBlock = this->layout1->helloText;
         this->layout1->Add(textBlock);
         _printf("Please select a mods folder. Press A to install, Y to uninstall.\n\n");
