@@ -41,6 +41,11 @@ const char* offsetDBPath = "sdmc:/UltimateModManager/Offsets.txt";
 
 std::shared_ptr<MainApplication> _main;
 
+pu::ui::Color PU_RED = pu::ui::Color(255, 0, 0, 128);
+pu::ui::Color PU_GREEN = pu::ui::Color(0, 255, 0, 128);
+pu::ui::Color PU_BLUE = pu::ui::Color(0, 0, 255, 128);
+pu::ui::Color PU_YELLOW = pu::ui::Color(255, 255, 0, 128);
+
 void _printf(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -51,17 +56,26 @@ void _printf(const char* fmt, ...) {
     _main->layout1->helloText->SetText(_main->layout1->helloText->GetText() + buffer);
 }
 
+void _clr_overlay(pu::ui::Color clr) {
+    auto textBlock = _main->layout1->helloText;
+    auto textOverlay = pu::ui::elm::Rectangle::New(0, textBlock->GetY() + textBlock->GetHeight() - 5, 1280, textBlock->singleLineHeight, clr, 0);
+    _main->layout1->Add(textOverlay);
+    _main->layout1->textOverlays.push_back(textOverlay);
+}
+
 int seek_files(FILE* f, uint64_t offset, FILE* arc) {
     // Set file pointers to start of file and offset respectively
     int ret = fseek(f, 0, SEEK_SET);
     if (ret) {
-        _printf(CONSOLE_RED "Failed to seek file with errno %d\n" CONSOLE_RESET, ret);
+        _clr_overlay(PU_RED);
+        _printf("Failed to seek file with errno %d\n", ret);
         return ret;
     }
 
     ret = fseek(arc, offset, SEEK_SET);
     if (ret) {
-        _printf(CONSOLE_RED "Failed to seek offset %lx from start of data.arc with errno %d\n" CONSOLE_RESET, offset, ret);
+        _clr_overlay(PU_RED);
+        _printf("Failed to seek offset %lx from start of data.arc with errno %d\n", offset, ret);
         return ret;
     }
 
@@ -117,7 +131,8 @@ void minBackup(u64 modSize, u64 offset, FILE* arc) {
             load_mod(backup_path, offset, arc);
         }
         else {
-          _printf(CONSOLE_BLUE "Backup file 0x%lx.backup already exists\n" CONSOLE_RESET, offset);
+          _clr_overlay(PU_BLUE);
+          _printf("Backup file 0x%lx.backup already exists\n", offset);
           delete[] backup_path;
           return;
         }
@@ -129,7 +144,7 @@ void minBackup(u64 modSize, u64 offset, FILE* arc) {
 
     FILE* backup = fopen(backup_path, "wb");
     if (backup) fwrite(buf, sizeof(char), modSize, backup);
-    else _printf(CONSOLE_RED "Attempted to create backup file '%s', failed to get backup file handle\n" CONSOLE_RESET, backup_path);
+    else { _clr_overlay(PU_RED); _printf("Attempted to create backup file '%s', failed to get backup file handle\n", backup_path); }
     fclose(backup);
     delete[] buf;
     delete[] backup_path;
@@ -169,12 +184,13 @@ int load_mod(const char* path, uint64_t offset, FILE* arc) {
                     compBuf = compressFile(path, compSize, realCompSize);
                     if (compBuf == nullptr)
                     {
-                        _printf(CONSOLE_RED "Compression failed\n" CONSOLE_RESET);
+                        _clr_overlay(PU_RED);
+                        _printf("Compression failed\n");
                         return -1;
                     }
                 }
                 // should never happen, only mods with an Offsets entry get here
-                else _printf(CONSOLE_RED "comp size not found\n" CONSOLE_RESET);
+                else { _clr_overlay(PU_RED); _printf("comp size not found\n"); }
             }
             else _printf("No compression needed\n");
         }
@@ -225,7 +241,8 @@ int load_mod(const char* path, uint64_t offset, FILE* arc) {
 
             fclose(f);
         } else {
-            _printf(CONSOLE_RED "Found file '%s', failed to get file handle\n" CONSOLE_RESET, path);
+            _clr_overlay(PU_RED);
+            _printf("Found file '%s', failed to get file handle\n", path);
             return -1;
         }
     }
@@ -342,8 +359,9 @@ int load_mods(FILE* f_arc) {
     DIR *d;
     struct dirent *dir;
 
-    _printf("Searching mod dir " CONSOLE_YELLOW "%s\n\n" CONSOLE_RESET, mod_dir.c_str());
-    //_main->CallForRender();
+    _clr_overlay(PU_YELLOW);
+    _printf("Searching mod dir %s\n\n", mod_dir.c_str());
+    _main->CallForRender();
 
     std::string abs_mod_dir = std::string(manager_root) + mod_dir;
     d = opendir(abs_mod_dir.c_str());
@@ -361,7 +379,7 @@ int load_mods(FILE* f_arc) {
                 if(!offset) {
                     if(offsetObj == nullptr && std::filesystem::exists(offsetDBPath)) {
                         _printf("Parsing Offsets.txt\n");
-                        //_main->CallForRender();
+                        _main->CallForRender();
                         offsetObj = new offsetFile(offsetDBPath);
                     }
                     if(offsetObj != nullptr) {
@@ -377,16 +395,18 @@ int load_mods(FILE* f_arc) {
                         load_mod(backup_file.c_str(), offset, f_arc);
 
                         remove(backup_file.c_str());
-                        _printf(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, dir->d_name);
-                        //_main->CallForRender();
+                        _clr_overlay(PU_BLUE);
+                        _printf("%s\n\n", dir->d_name);
+                        _main->CallForRender();
                     } else {
                         std::string mod_file = std::string(manager_root) + mod_dir + "/" + dir->d_name;
                         if (installing == INSTALL) {
                             appletSetCpuBoostMode(ApmCpuBoostMode_Type1);
                             load_mod(mod_file.c_str(), offset, f_arc);
                             appletSetCpuBoostMode(ApmCpuBoostMode_Disabled);
-                            _printf(CONSOLE_GREEN "%s/%s\n\n" CONSOLE_RESET, mod_dir.c_str(), dir->d_name);
-                            //_main->CallForRender();
+                            _clr_overlay(PU_GREEN);
+                            _printf("%s/%s\n\n", mod_dir.c_str(), dir->d_name);
+                            _main->CallForRender();
                         } else if (installing == UNINSTALL) {
                             char* backup_path = (char*) malloc(FILENAME_SIZE);
                             snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
@@ -394,23 +414,26 @@ int load_mods(FILE* f_arc) {
                             if(std::filesystem::exists(backup_path)) {
                                 load_mod(backup_path, offset, f_arc);
                                 remove(backup_path);
-                                _printf(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, mod_file.c_str());
+                                _clr_overlay(PU_BLUE);
+                                _printf("%s\n\n", mod_file.c_str());
                             }
-                            else _printf(CONSOLE_RED "No backup found\n\n" CONSOLE_RESET);
+                            else { _clr_overlay(PU_RED); _printf("No backup found\n\n"); }
                             free(backup_path);
-                            //_main->CallForRender();
+                            _main->CallForRender();
                         }
                     }
                 } else {
-                    _printf(CONSOLE_RED "Found file '%s', offset not parsable\n" CONSOLE_RESET, dir->d_name);
-                    //_main->CallForRender();
+                    _clr_overlay(PU_RED);
+                    _printf("Found file '%s', offset not parsable\n", dir->d_name);
+                    _main->CallForRender();
                 }
             }
         }
         closedir(d);
     } else {
-        _printf(CONSOLE_RED "Failed to open mod directory '%s'\n" CONSOLE_RESET, abs_mod_dir.c_str());
-        //_main->CallForRender();
+        _clr_overlay(PU_RED);
+        _printf("Failed to open mod directory '%s'\n", abs_mod_dir.c_str());
+        _main->CallForRender();
     }
 
     return 0;
@@ -420,13 +443,16 @@ void perform_installation() {
     std::string arc_path = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
     FILE* f_arc;
     if(!std::filesystem::exists(arc_path)) {
-      _printf(CONSOLE_RED "\nNo data.arc found!\n" CONSOLE_RESET);
-      _printf("Please use the " CONSOLE_GREEN "Data Arc Dumper" CONSOLE_RESET " first.\n");
+      _clr_overlay(PU_RED);
+      _printf("\nNo data.arc found!\n");
+      _clr_overlay(PU_GREEN);
+      _printf("Please use the Data Arc Dumper first.\n");
       goto end;
     }
     f_arc = fopen(arc_path.c_str(), "r+b");
     if(!f_arc){
-        _printf(CONSOLE_RED "Failed to get file handle to data.arc\n" CONSOLE_RESET);
+        _clr_overlay(PU_RED);
+        _printf("Failed to get file handle to data.arc\n");
         goto end;
     }
     if (installing == INSTALL)
@@ -435,7 +461,7 @@ void perform_installation() {
         _printf("\nUninstalling mods...\n\n");
     
     while (num_mod_dirs > 0) {
-        _main->layout1->helloText->OnRender();
+        _main->CallForRender();
         load_mods(f_arc);
     }
 

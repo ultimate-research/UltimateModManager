@@ -33,7 +33,7 @@ namespace pu::ui::elm
             s32 GetTextWidth();
             s32 GetTextHeight();
             String GetText();
-            void SetText(String Text);
+            virtual void SetText(String Text);
             void SetFont(render::NativeFont Font);
             Color GetColor();
             void SetColor(Color Color);
