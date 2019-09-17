@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <algorithm>
+#include <list>
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
 #include <experimental/filesystem>
@@ -24,6 +26,7 @@ bool installation_finish = false;
 s64 mod_folder_index = 0;
 offsetFile* offsetObj = nullptr;
 ZSTD_CCtx* compContext = nullptr;
+std::list<s64> installIDXs;
 
 const char* manager_root = "sdmc:/UltimateModManager/";
 const char* mods_root = "sdmc:/UltimateModManager/mods/";
@@ -449,6 +452,13 @@ void modInstallerMainLoop(int kDown)
             svcSleepThread(7e+7);
             mod_folder_index--;
         }
+        if(kDown & KEY_ZR) {
+            std::list<s64>::iterator it = std::find(installIDXs.begin(), installIDXs.end(), mod_folder_index);
+            if(it == installIDXs.end())
+                installIDXs.push_back(mod_folder_index);
+            else
+                installIDXs.erase(it);
+        }
         if (kDown & KEY_DDOWN || kDown & KEY_LSTICK_DOWN)
             mod_folder_index++;
         else if (kDown & KEY_DUP || kDown & KEY_LSTICK_UP)
@@ -492,9 +502,15 @@ void modInstallerMainLoop(int kDown)
                             add_mod_dir(directory.c_str());
                         }
                     }
-                    if(curr_folder_index < 42 || curr_folder_index <= mod_folder_index) printf("%s\n", dir->d_name);
-                    if (curr_folder_index == mod_folder_index)
-                        printf(CONSOLE_RESET);
+                    else if(std::find(installIDXs.begin(), installIDXs.end(), curr_folder_index) != installIDXs.end()) {
+                        printf(CONSOLE_CYAN);
+                        if (start_install) {
+                            add_mod_dir(directory.c_str());
+                        }
+                    }
+                    if(curr_folder_index < 42 || curr_folder_index <= mod_folder_index)
+                        printf("%s\n", dir->d_name);
+                    printf(CONSOLE_RESET);
                     curr_folder_index++;
                 }
             }
@@ -531,6 +547,7 @@ void modInstallerMainLoop(int kDown)
             installation_finish = true;
             mod_dirs = NULL;
             num_mod_dirs = 0;
+            installIDXs.clear();
         }
     }
 
