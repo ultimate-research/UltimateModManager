@@ -13,7 +13,7 @@ int menu = MAIN_MENU;
 
 void printMainMenu() {
     consoleClear();
-    console_set_status("\n" GREEN "Ultimate Mod Manager" RESET);
+    console_set_status("\n" GREEN "Ultimate Mod Manager " VERSION_STRING " " RESET);
     printf("\n\nPress 'Y' to go to the Mod Installer");
     printf("\nPress 'X' to go to the Data Arc Dumper");
     printf("\nPress 'A' to go to the FTP Server");
