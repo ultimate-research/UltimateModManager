@@ -6,9 +6,18 @@
 Layout1::Layout1()
 {
     // Create the textblock with the text we want
-    this->helloText = pu::ui::elm::ScrollableTextBlock::New(0, 0, "", 25, true);
+    this->helloText = pu::ui::elm::ScrollableTextBlock::New(0, 0, "", 25, false);
     // Add the textblock to the layout's element container. IMPORTANT! this MUST be done, having them as members is not enough (just a simple way to keep them)
     this->Add(this->helloText);
+
+    s32 width = 800;
+    this->modInstallerMenu = pu::ui::elm::Menu::New(1280 / 2 - (width / 2), 40, width, pu::ui::Color(0,255,0,128), 50, 5);
+    this->modInstallerMenu->SetVisible(false);
+    this->Add(this->modInstallerMenu);
+
+    this->progressBar = pu::ui::elm::ProgressBar::New(1280 / 2 - (width / 2), 720 / 2, width, 50, 1.0);
+    this->progressBar->SetVisible(false);
+    this->Add(progressBar);
 }
 
 bool selection_finish = false;
@@ -16,7 +25,7 @@ bool show_open_main = true;
 
 void MainApplication::openMain(u64 Down, u64 Up, u64 Held, bool Touch)
 {
-    if (Down & KEY_PLUS) this->CloseWithFadeOut();
+    if (Down & KEY_PLUS) this->Close();
 
     if (!show_open_main) return;
 
@@ -34,13 +43,49 @@ void MainApplication::openMain(u64 Down, u64 Up, u64 Held, bool Touch)
     show_open_main = false;
 }
 
+void install_mod_dir() {
+    installing = INSTALL;
+    selection_finish = true;
+    add_mod_dir(_main->layout1->modInstallerMenu->GetSelectedItem()->GetName().AsUTF8().c_str());
+    mkdir(backups_root, 0777);
+    perform_installation();
+    mod_dirs = NULL;
+    num_mod_dirs = 0;
+}
+
+void uninstall_mod_dir() {
+    installing = UNINSTALL;
+    selection_finish = true;
+    add_mod_dir(_main->layout1->modInstallerMenu->GetSelectedItem()->GetName().AsUTF8().c_str());
+    mkdir(backups_root, 0777);
+    perform_installation();
+    mod_dirs = NULL;
+    num_mod_dirs = 0;
+}
+
+void addMenuItem(std::string name) {
+    auto dirMenuItem = pu::ui::elm::MenuItem::New(name);
+    dirMenuItem->AddOnClick(&install_mod_dir, KEY_A);
+    dirMenuItem->AddOnClick(&uninstall_mod_dir, KEY_Y);
+    dirMenuItem->AddOnClick(&install_mod_dir, KEY_TOUCH);
+    _main->layout1->modInstallerMenu->AddItem(dirMenuItem);
+}
+
 void MainApplication::modInstallerMain(u64 kDown, u64 kUp, u64 kHeld, bool Touch)
 {
+    if (kDown & KEY_PLUS) this->Close();
+
     auto textBlock = this->layout1->helloText;
-    if (textBlock->prevY != textBlock->GetY()) {
-        s32 diff = textBlock->GetY() - textBlock->prevY;
-        //for (auto rect : this->layout1->textOverlays)
-        //   rect->SetY(rect->GetY() + diff);
+
+    for (auto rect : this->layout1->textOverlays) {
+        if (textBlock->prevY != textBlock->GetY()) {
+            s32 diff = textBlock->GetY() - textBlock->prevY;
+           rect->SetY(rect->GetY() + diff);
+        }
+
+        s32 currY = rect->GetY();
+        if(currY <= 720 && currY >= 0)
+            this->layout1->Add(rect);
     }
 
     if (!installation_finish && !selection_finish) {
@@ -58,12 +103,17 @@ void MainApplication::modInstallerMain(u64 kDown, u64 kUp, u64 kHeld, bool Touch
             show_open_main = true;
         }
 
-        this->layout1->textOverlays.clear();
-        this->layout1->Clear();
-        this->layout1->helloText = pu::ui::elm::ScrollableTextBlock::New(0, 0, "", 25, true);
-        textBlock = this->layout1->helloText;
-        this->layout1->Add(textBlock);
-        _printf("Please select a mods folder. Press A to install, Y to uninstall.\n\n");
+        //this->layout1->textOverlays.clear();
+        //this->layout1->Clear();
+        //this->layout1->helloText = pu::ui::elm::ScrollableTextBlock::New(0, 0, "", 25, false);
+        //textBlock = this->layout1->helloText;
+        //this->layout1->Add(textBlock);
+        this->layout1->helloText->SetText("");
+        this->layout1->progressBar->SetProgress(0.0f);
+        this->layout1->progressBar->SetVisible(false);
+        this->layout1->modInstallerMenu->SetVisible(false);
+        this->layout1->modInstallerMenu->ClearItems();
+        __printf("Please select a mods folder. Press A to install, Y to uninstall.\n\n");
         if (kHeld & KEY_RSTICK_DOWN) {
             svcSleepThread(7e+7);
             mod_folder_index++;
@@ -77,73 +127,24 @@ void MainApplication::modInstallerMain(u64 kDown, u64 kUp, u64 kHeld, bool Touch
         else if (kDown & KEY_DUP || kDown & KEY_LSTICK_UP)
             mod_folder_index--;
 
-        bool start_install = false;
-        if (kDown & KEY_A) {
-            start_install = true;
-            installing = INSTALL;
-        }
-        else if (kDown & KEY_Y) {
-            start_install = true;
-            installing = UNINSTALL;
-        }
-        bool found_dir = false;
-
         DIR* d = opendir(mods_root);
         struct dirent *dir;
         if (d) {
             s64 curr_folder_index = 0;
             while ((dir = readdir(d)) != NULL) {
                 std::string d_name = std::string(dir->d_name);
-                if(dir->d_type == DT_DIR) {
-                    if (d_name == "." || d_name == "..")
-                        continue;
-                    std::string directory = "mods/" + d_name;
-
-                    if (curr_folder_index == mod_folder_index) {
-                        _printf("> ");
-                        if (start_install) {
-                            found_dir = true;
-                            add_mod_dir(directory.c_str());
-                        }
-                    }
-                    _printf("%s\n", dir->d_name);
-                    curr_folder_index++;
-                }
+                addMenuItem("mods" + d_name);
             }
-
-            if (mod_folder_index < 0)
-                mod_folder_index = curr_folder_index;
-
-            if (mod_folder_index > curr_folder_index)
-                mod_folder_index = 0;
-
-            if (mod_folder_index == curr_folder_index) {
-                _printf("> ");
-                if (start_install) {
-                    found_dir = true;
-                    add_mod_dir("backups");
-                }
-            }
-
-            _printf("backups\n");
-
-            if (mod_folder_index == curr_folder_index)
-                _printf(CONSOLE_RESET);
 
             closedir(d);
         } else {
             _clr_overlay(PU_RED);
-            _printf("%s folder not found\n\n", mods_root);
+            __printf("%s folder not found\n\n", mods_root);
         }
 
-        
-        if (start_install && found_dir) {
-            selection_finish = true;
-            mkdir(backups_root, 0777);
-            perform_installation();
-            mod_dirs = NULL;
-            num_mod_dirs = 0;
-        }
+        addMenuItem("backups");
+        this->layout1->modInstallerMenu->SetVisible(true);
+        this->layout1->modInstallerMenu->SetNumberOfItemsToShow(this->layout1->modInstallerMenu->GetItems().size());
     } else {
         if (kDown & KEY_B) {
             if (installation_finish) {

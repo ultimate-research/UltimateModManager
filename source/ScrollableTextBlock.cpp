@@ -34,13 +34,13 @@ namespace pu::ui::elm
         s32 newY = oldY;
         if (Held & KEY_DDOWN || Held & KEY_LSTICK_DOWN) {
             if (height > 720) {
-                newY = oldY - height * 0.1;
+                newY = oldY - height * 0.02;
                 if (newY < -1 * height + 720) newY = -1 * height + 720;
                 this->SetY(newY);
             }
         }
         else if (Held & KEY_DUP || Held & KEY_LSTICK_UP) {
-            newY = oldY + height * 0.1;
+            newY = oldY + height * 0.02;
             if (newY > 0) newY = 0;
             this->SetY(newY);
         }

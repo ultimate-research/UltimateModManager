@@ -31,6 +31,13 @@ char** mod_dirs = NULL;
 size_t num_mod_dirs = 0;
 bool installation_finish = false;
 s64 mod_folder_index = 0;
+
+typedef struct ModFile {
+    std::string mod_path;
+    uint64_t offset;
+} ModFile;
+std::vector<ModFile> mod_files;
+
 offsetFile* offsetObj = nullptr;
 ZSTD_CCtx* compContext = nullptr;
 
@@ -47,6 +54,18 @@ pu::ui::Color PU_BLUE = pu::ui::Color(0, 0, 255, 128);
 pu::ui::Color PU_YELLOW = pu::ui::Color(255, 255, 0, 128);
 
 void _printf(const char* fmt, ...) {
+    return;
+
+    va_list args;
+    va_start(args, fmt);
+
+    char buffer[1024];
+    vsnprintf(buffer, 1024, fmt, args);
+
+    _main->layout1->helloText->SetText(_main->layout1->helloText->GetText() + buffer);
+}
+
+void __printf(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
 
@@ -57,6 +76,8 @@ void _printf(const char* fmt, ...) {
 }
 
 void _clr_overlay(pu::ui::Color clr) {
+    return;
+
     auto textBlock = _main->layout1->helloText;
     auto textOverlay = pu::ui::elm::Rectangle::New(0, textBlock->GetY() + textBlock->GetHeight() - 5, 1280, textBlock->singleLineHeight, clr, 0);
     _main->layout1->Add(textOverlay);
@@ -351,7 +372,74 @@ void remove_last_mod_dir() {
     num_mod_dirs--;
 }
 
-int load_mods(FILE* f_arc) {
+void load_mods(FILE* f_arc) {
+    size_t num_mod_files = mod_files.size();
+    _main->layout1->progressBar->SetMaxValue(num_mod_files);
+    _main->layout1->progressBar->SetVisible(true);
+
+    for (ModFile mod_file : mod_files) {
+        std::string mod_path = mod_file.mod_path;
+        std::string rel_mod_dir = mod_path.substr(strlen(mods_root));
+        std::string arcFileName = rel_mod_dir.substr(rel_mod_dir.find('/')+1);
+        uint64_t offset = mod_file.offset;
+        if(!offset) {
+            if(offsetObj == nullptr && std::filesystem::exists(offsetDBPath)) {
+                __printf("Parsing Offsets.txt\n");
+                _main->CallForRender();
+                offsetObj = new offsetFile(offsetDBPath);
+            }
+            if(offsetObj != nullptr) {
+                //_printf("Trying to find offset in Offsets.txt\n");
+                //
+                offset = offsetObj->getOffset(arcFileName);
+            }
+        }
+        
+        if (!offset) {
+            _clr_overlay(PU_RED);
+            __printf("Found file %s, offset not parsable\n", rel_mod_dir.c_str());
+            _main->CallForRender();
+            continue;
+        }
+
+        if (mod_path.find("backups") != -1) {
+            load_mod(mod_path.c_str(), offset, f_arc);
+
+            remove(mod_path.c_str());
+            _clr_overlay(PU_BLUE);
+            _printf("%s\n\n", mod_path.c_str());
+            _main->CallForRender();
+        } else {
+            if (installing == INSTALL) {
+                appletSetCpuBoostMode(ApmCpuBoostMode_Type1);
+                load_mod(mod_path.c_str(), offset, f_arc);
+                appletSetCpuBoostMode(ApmCpuBoostMode_Disabled);
+                _clr_overlay(PU_GREEN);
+                _printf("%s\n\n", mod_path.c_str());
+                _main->CallForRender();
+            } else if (installing == UNINSTALL) {
+                char* backup_path = (char*) malloc(FILENAME_SIZE);
+                snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
+
+                if(std::filesystem::exists(backup_path)) {
+                    load_mod(backup_path, offset, f_arc);
+                    remove(backup_path);
+                    _clr_overlay(PU_BLUE);
+                    _printf("%s\n\n", mod_path.c_str());
+                }
+                else { _clr_overlay(PU_RED); _printf("No backup found\n\n"); }
+                free(backup_path);
+                _main->CallForRender();
+            }
+        }
+
+        _main->layout1->progressBar->IncrementProgress(1);
+    }
+
+    mod_files.clear();
+}
+
+int enumerate_mod_files(FILE* f_arc) {
     std::string mod_dir = mod_dirs[num_mod_dirs-1];
 
     remove_last_mod_dir();
@@ -376,56 +464,18 @@ int load_mods(FILE* f_arc) {
                 add_mod_dir(new_mod_dir.c_str());
             } else {
                 uint64_t offset = hex_to_u64(dir->d_name);
-                if(!offset) {
-                    if(offsetObj == nullptr && std::filesystem::exists(offsetDBPath)) {
-                        _printf("Parsing Offsets.txt\n");
-                        _main->CallForRender();
-                        offsetObj = new offsetFile(offsetDBPath);
-                    }
-                    if(offsetObj != nullptr) {
-                        //_printf("Trying to find offset in Offsets.txt\n");
-                        //
-                        std::string arcFileName = (mod_dir.substr(mod_dir.find('/', mod_dir.find('/')+1) + 1) + "/" + dir->d_name);
-                        offset = offsetObj->getOffset(arcFileName);
-                    }
-                }
-                if(offset){
-                    if (mod_dir == "backups") {
-                        std::string backup_file = std::string(backups_root) + std::string(dir->d_name);
-                        load_mod(backup_file.c_str(), offset, f_arc);
+                if (mod_dir == "backups") {
+                    std::string backup_file = std::string(backups_root) + std::string(dir->d_name);
+                    mod_files.push_back(ModFile{backup_file, offset});
+                    //load_mod(backup_file.c_str(), offset, f_arc);
 
-                        remove(backup_file.c_str());
-                        _clr_overlay(PU_BLUE);
-                        _printf("%s\n\n", dir->d_name);
-                        _main->CallForRender();
-                    } else {
-                        std::string mod_file = std::string(manager_root) + mod_dir + "/" + dir->d_name;
-                        if (installing == INSTALL) {
-                            appletSetCpuBoostMode(ApmCpuBoostMode_Type1);
-                            load_mod(mod_file.c_str(), offset, f_arc);
-                            appletSetCpuBoostMode(ApmCpuBoostMode_Disabled);
-                            _clr_overlay(PU_GREEN);
-                            _printf("%s/%s\n\n", mod_dir.c_str(), dir->d_name);
-                            _main->CallForRender();
-                        } else if (installing == UNINSTALL) {
-                            char* backup_path = (char*) malloc(FILENAME_SIZE);
-                            snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
-
-                            if(std::filesystem::exists(backup_path)) {
-                                load_mod(backup_path, offset, f_arc);
-                                remove(backup_path);
-                                _clr_overlay(PU_BLUE);
-                                _printf("%s\n\n", mod_file.c_str());
-                            }
-                            else { _clr_overlay(PU_RED); _printf("No backup found\n\n"); }
-                            free(backup_path);
-                            _main->CallForRender();
-                        }
-                    }
-                } else {
-                    _clr_overlay(PU_RED);
-                    _printf("Found file '%s', offset not parsable\n", dir->d_name);
+                    //remove(backup_file.c_str());
+                    _clr_overlay(PU_BLUE);
+                    _printf("%s\n\n", dir->d_name);
                     _main->CallForRender();
+                } else {
+                    std::string mod_file = std::string(manager_root) + mod_dir + "/" + dir->d_name;
+                    mod_files.push_back(ModFile{mod_file, offset});
                 }
             }
         }
@@ -456,21 +506,23 @@ void perform_installation() {
         goto end;
     }
     if (installing == INSTALL)
-        _printf("\nInstalling mods...\n\n");
+        __printf("\nInstalling mods...\n\n");
     else if (installing == UNINSTALL)
-        _printf("\nUninstalling mods...\n\n");
+        __printf("\nUninstalling mods...\n\n");
     
     while (num_mod_dirs > 0) {
         _main->CallForRender();
-        load_mods(f_arc);
+        enumerate_mod_files(f_arc);
     }
 
     free(mod_dirs);
 
+    load_mods(f_arc);
+
     fclose(f_arc);
 
 end:
-    _printf("Mod Installer finished.\nPress B to return to the Mod Installer.\n");
-    _printf("Press X to launch Smash\n\n");
+    __printf("Mod Installer finished.\nPress B to return to the Mod Installer.\n");
+    __printf("Press X to launch Smash\n\n");
     installation_finish = true;
 }
