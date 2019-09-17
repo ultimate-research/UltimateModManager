@@ -33,6 +33,7 @@ loop(loop_status_t (*callback)(void))
   }
   return LOOP_EXIT;
 #elif defined(__SWITCH__)
+  appletSetMediaPlaybackState(true);
   while(appletMainLoop())
   {
     console_render();
@@ -40,6 +41,7 @@ loop(loop_status_t (*callback)(void))
     if(status != LOOP_CONTINUE)
       return status;
   }
+  appletSetMediaPlaybackState(false);
   menu = MAIN_MENU;
   printMainMenu();
   return LOOP_EXIT;
