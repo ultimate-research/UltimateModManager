@@ -61,7 +61,7 @@ bool ZSTDFileIsFrame(const char* filePath) {
 
 char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns pointer to heap
 {
-  char* outBuff = new char[compSize+3];
+  char* outBuff = new char[compSize+1];
   FILE* inFile = fopen(path, "rb");
   fseek(inFile, 0, SEEK_END);
   u64 inSize = ftell(inFile);
@@ -76,7 +76,7 @@ char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns po
   do
   {
     params.cParams = ZSTD_getCParams(compLvl++, inSize, 0);
-    dataSize = ZSTD_compress_advanced(compContext, outBuff, compSize+3, inBuff, inSize, nullptr, 0, params);
+    dataSize = ZSTD_compress_advanced(compContext, outBuff, compSize+1, inBuff, inSize, nullptr, 0, params);
     if(compLvl==8) compLvl = 17;  // skip arbitrary amount of levels for speed.
   }
   while ((dataSize > compSize || ZSTD_isError(dataSize)) && compLvl <= ZSTD_maxCLevel());
