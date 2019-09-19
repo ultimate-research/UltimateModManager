@@ -482,7 +482,10 @@ void modInstallerMainLoop(int kDown)
         }
         bool found_dir = false;
 
-        printf("Please select a mods folder. Press A to install, Y to uninstall.\n\n");
+        printf("Please select a mods folder.\n\n");
+        printf(CONSOLE_ESC(s) CONSOLE_ESC(44;1H) GREEN "A" RESET "=install "
+               GREEN "Y" RESET "=uninstall " GREEN "L+R+Y" RESET "=delete "
+               GREEN "R-Stick" RESET "=scroll " GREEN "ZR" RESET "=multi-select" CONSOLE_ESC(u));
 
         DIR* d = opendir(mods_root);
         struct dirent *dir;
