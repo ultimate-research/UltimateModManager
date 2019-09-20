@@ -177,6 +177,8 @@ void copy(const char* from, const char* to, bool exfat = false)
       if(ret != bufSize)
       {
         printf(CONSOLE_RED "\nSomething went wrong!" CONSOLE_RESET);
+        if(sizeWritten > 0 && exfat)
+          printf(CONSOLE_YELLOW "\nYou sure your sd card is exfat?" CONSOLE_RESET);
         fclose(dest);
         fclose(source);
         romfsUnmount("romfs");
