@@ -389,7 +389,7 @@ int load_mods(FILE* f_arc) {
                         }
                     }
                 } else {
-                    printf(CONSOLE_RED "Found file '%s', offset not parsable\n" CONSOLE_RESET, dir->d_name);
+                    printf(CONSOLE_RED "Found file '%s', offset not found.\nMake sure the file name and/or path is correct.\n" CONSOLE_RESET, dir->d_name);
                     consoleUpdate(NULL);
                 }
             }
