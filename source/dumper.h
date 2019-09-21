@@ -70,6 +70,7 @@ void copy(const char* from, const char* to, bool exfat = false)
     std::string backups = "/UltimateModManager/backups";
     if(std::filesystem::exists(backups)) removeRecursive(backups);
     remove(outPath.c_str());
+    fsdevDeleteDirectoryRecursively(outPath.c_str());
     romfsMountFromCurrentProcess("romfs");
     FILE* source = fopen(from, "rb");
     if(source == nullptr)

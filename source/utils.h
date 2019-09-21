@@ -91,13 +91,13 @@ void shortVibratePattern()
   vibrateFor(VibrationValue, VibrationDeviceHandle, 3.5e+8);
 }
 
-void removeRecursive(std::experimental::filesystem::path path)
+void removeRecursive(std::filesystem::path path)
 {
-  if (std::experimental::filesystem::is_directory(path))
+  if (std::filesystem::is_directory(path))
   {
-    for (auto & child : std::experimental::filesystem::directory_iterator(path))
+    for (auto & child : std::filesystem::directory_iterator(path))
       removeRecursive(child.path());
   }
 
-  remove(path);
+  std::filesystem::remove(path);
 }
