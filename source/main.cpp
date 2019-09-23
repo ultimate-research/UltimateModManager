@@ -45,6 +45,8 @@ int main(int argc, char **argv)
 {
     console_init();
     printMainMenu();
+    if(!std::filesystem::exists(mods_root))
+        mkdirs(mods_root, 0777);
 
     while(appletMainLoop())
     {
