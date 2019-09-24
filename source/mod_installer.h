@@ -560,7 +560,8 @@ void modInstallerMainLoop(int kDown)
             closedir(d);
            log(CONSOLE_ESC(s) CONSOLE_ESC(46;1H) GREEN "A" RESET "=install "
                    GREEN "Y" RESET "=uninstall " GREEN "L+R+Y" RESET "=delete "
-                   GREEN "R-Stick" RESET "=scroll " GREEN "ZR" RESET "=multi-select" CONSOLE_ESC(u));
+                   GREEN "R-Stick" RESET "=scroll " GREEN "ZR" RESET "=multi-select "
+                   GREEN "B" RESET "=main menu" CONSOLE_ESC(u));
         } else {
            log(CONSOLE_RED "%s folder not found\n\n" CONSOLE_RESET, mods_root);
         }

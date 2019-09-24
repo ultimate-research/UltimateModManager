@@ -9,7 +9,7 @@ extern "C" {
 #define ARC_DUMPER_MENU 2
 #define FTP_MENU 3
 
-int menu = MAIN_MENU;
+int menu = MOD_INSTALLER_MENU;
 
 void printMainMenu() {
     consoleClear();
@@ -17,4 +17,12 @@ void printMainMenu() {
     printf("\n\nPress 'A' to go to the Mod Installer");
     printf("\nPress 'X' to go to the Data Arc Dumper");
     printf("\nPress 'Y' to go to the FTP Server");
+}
+void printDumperMenu() {
+    consoleClear();
+    console_set_status("\n" GREEN "Data Arc Dumper" RESET);
+    printf("\n\nPress 'A' to dump as a split file (FAT32)");
+    printf("\nPress 'Y' to dump as a single file (exFAT)");
+    printf("\nPress 'X' to generate an MD5 hash of the file");
+    printf("\nPress 'B' to return to the main menu");
 }
