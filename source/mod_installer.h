@@ -489,7 +489,7 @@ void modInstallerMainLoop(int kDown)
 
         bool start_install = false;
         deleteMod = false;
-        if(kDown & KEY_L && kDown & KEY_R && kDown & KEY_Y) {
+        if(kHeld & KEY_L && kHeld & KEY_R && kDown & KEY_Y) {
          log("del\n");
           deleteMod = true;
           start_install = true;
