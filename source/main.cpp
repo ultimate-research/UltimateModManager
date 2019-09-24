@@ -13,7 +13,7 @@ extern "C" {
 }
 
 void mainMenuLoop(int kDown) {
-    if (kDown & KEY_Y) {
+    if (kDown & KEY_A) {
         installation_finish = false;
         menu = MOD_INSTALLER_MENU;
 
@@ -36,7 +36,7 @@ void mainMenuLoop(int kDown) {
         printf("\nPress 'B' to return to the main menu");
     }
 
-    else if (kDown & KEY_A) {
+    else if (kDown & KEY_Y) {
         menu = FTP_MENU;
     }
 }
