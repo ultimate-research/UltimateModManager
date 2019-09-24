@@ -38,15 +38,14 @@ const char* offsetDBPath = "sdmc:/UltimateModManager/Offsets.txt";
 void log(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
-
-    char buffer[1024];
-    vsnprintf(buffer, 1024, fmt, args);
-    printf(buffer);
+    int len;
+    len = vsnprintf(nullptr, 0, fmt, args) + 1;
+    char* buffer = new char[len];
+    vsnprintf(buffer, len, fmt, args);
 
     std::string logLine = std::string(buffer);
-    if (strstr(buffer, CONSOLE_RED) != NULL) {
-        errorLogs.push_back(logLine);
-    }
+    delete[] buffer;
+    errorLogs.push_back(logLine);
 }
 
 int seek_files(FILE* f, uint64_t offset, FILE* arc) {
@@ -102,7 +101,7 @@ char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns po
     delete[] outBuff;
     outBuff = nullptr;
   }
-  //else log("compressed size: %lX\n", dataSize);
+  //else printf("compressed size: %lX\n", dataSize);
   //FILE* f = fopen("/test","wb");
   //fwrite(outBuff, 1, compSize, f);
   delete[] inBuff;
@@ -121,7 +120,7 @@ void minBackup(u64 modSize, u64 offset, FILE* arc) {
             load_mod(backup_path, offset, arc);
         }
         else {
-          log(CONSOLE_BLUE "Backup file 0x%lx.backup already exists\n" CONSOLE_RESET, offset);
+          //printf(CONSOLE_BLUE "Backup file 0x%lx.backup already exists\n" CONSOLE_RESET, offset);
           delete[] backup_path;
           return;
         }
@@ -133,7 +132,7 @@ void minBackup(u64 modSize, u64 offset, FILE* arc) {
 
     FILE* backup = fopen(backup_path, "wb");
     if (backup) fwrite(buf, sizeof(char), modSize, backup);
-    else log(CONSOLE_RED "Attempted to create backup file '%s', failed to get backup file handle\n" CONSOLE_RESET, backup_path);
+    else log(CONSOLE_RED "Attempted to create backup file '%s', failed to get file handle\n" CONSOLE_RESET, backup_path);
     fclose(backup);
     delete[] buf;
     delete[] backup_path;
@@ -151,9 +150,11 @@ int load_mod(const char* path, uint64_t offset, FILE* arc) {
 
     if(pathStr.substr(pathStr.find_last_of('/'), 3) != "/0x") {
         if(offsetObj == nullptr && std::filesystem::exists(offsetDBPath)) {
-            log("Parsing Offsets.txt\n");
+            printf("Parsing Offsets.txt\n");
             consoleUpdate(NULL);
             offsetObj = new offsetFile(offsetDBPath);
+            printf("Done parsing\n");
+            consoleUpdate(NULL);
         }
         if(offsetObj != nullptr) {
             //printf("Looking up compression size in Offsets.txt\n");
@@ -163,24 +164,24 @@ int load_mod(const char* path, uint64_t offset, FILE* arc) {
             compSize = fileData[1];
             decompSize = fileData[2];
             if(modSize > decompSize) {
-              log(CONSOLE_RED "Mod can not be larger than expected uncompressed size\n" CONSOLE_RESET);
+              log(CONSOLE_RED "%s can not be larger than expected uncompressed size\n" CONSOLE_RESET, path);
               return -1;
             }
             if(compSize != decompSize && !ZSTDFileIsFrame(path)) {
                 if(compSize != 0) {
-                    log("Compressing...\n");
-                    consoleUpdate(NULL);
+                    //printf("Compressing...\n");
+                    //consoleUpdate(NULL);
                     compBuf = compressFile(path, compSize, realCompSize);
                     if (compBuf == nullptr)
                     {
-                        log(CONSOLE_RED "Compression failed\n" CONSOLE_RESET);
+                        log(CONSOLE_RED "Compression failed on %s\n" CONSOLE_RESET, path);
                         return -1;
                     }
                 }
                 // should never happen, only mods with an Offsets entry get here
-                else log(CONSOLE_RED "comp size not found\n" CONSOLE_RESET);
+                else log(CONSOLE_RED "comp size not found for %s\n" CONSOLE_RESET, path);
             }
-            else log("No compression needed\n");
+            //else printf("No compression needed\n");
         }
     }
     if(pathStr.find(backups_root) == std::string::npos) {
@@ -236,62 +237,6 @@ int load_mod(const char* path, uint64_t offset, FILE* arc) {
 
     return 0;
 }
-/*
-int create_backup(const char* mod_dir, char* filename, uint64_t offset, FILE* arc) {  // Not used
-    char* backup_path = (char*) malloc(FILENAME_SIZE);
-    char* mod_path = (char*) malloc(FILENAME_SIZE);
-    snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
-    snprintf(mod_path, FILENAME_SIZE, "%s%s/%s", manager_root, mod_dir, filename);
-
-    if (fileExists(std::string(backup_path))) {
-        log(CONSOLE_BLUE "Backup file 0x%lx.backup already exists\n" CONSOLE_RESET, offset);
-        free(backup_path);
-        free(mod_path);
-        return 0;
-    }
-
-    FILE* backup = fopen(backup_path, "wb");
-    FILE* mod = fopen(mod_path, "rb");
-    if(backup && mod) {
-        fseek(mod, 0, SEEK_END);
-        size_t filesize = ftell(mod);
-        int ret = seek_files(backup, offset, arc);
-        if (!ret) {
-            void* copy_buffer = malloc(FILE_READ_SIZE);
-            uint64_t total_size = 0;
-
-            // Copy in up to FILE_READ_SIZE byte chunks
-            size_t size;
-            do {
-                size_t to_read = FILE_READ_SIZE;
-                if (filesize < FILE_READ_SIZE)
-                    to_read = filesize;
-                size = fread(copy_buffer, 1, to_read, arc);
-                total_size += size;
-                filesize -= size;
-
-                fwrite(copy_buffer, 1, size, backup);
-            } while(size == FILE_READ_SIZE);
-
-            free(copy_buffer);
-        }
-
-        fclose(backup);
-        fclose(mod);
-    } else {
-        if (backup) fclose(backup);
-        else log(CONSOLE_RED "Attempted to create backup file '%s', failed to get backup file handle\n" CONSOLE_RESET, backup_path);
-
-        if (mod) fclose(mod);
-        else log(CONSOLE_RED "Attempted to create backup file '%s', failed to get mod file handle '%s'\n" CONSOLE_RESET, backup_path, mod_path);
-    }
-
-    free(backup_path);
-    free(mod_path);
-
-    return 0;
-}
-*/
 
 #define UC(c) ((unsigned char)c)
 
@@ -346,8 +291,8 @@ int load_mods(FILE* f_arc) {
     DIR *d;
     struct dirent *dir;
 
-    log("Searching mod dir " CONSOLE_YELLOW "%s\n\n" CONSOLE_RESET, mod_dir.c_str());
-    consoleUpdate(NULL);
+    //printf("Searching mod dir " CONSOLE_YELLOW "%s\n\n" CONSOLE_RESET, mod_dir.c_str());
+    //consoleUpdate(NULL);
 
     std::string abs_mod_dir = std::string(manager_root) + mod_dir;
     d = opendir(abs_mod_dir.c_str());
@@ -364,9 +309,11 @@ int load_mods(FILE* f_arc) {
                 uint64_t offset = hex_to_u64(dir->d_name);
                 if(!offset) {
                     if(offsetObj == nullptr && std::filesystem::exists(offsetDBPath)) {
-                        log("Parsing Offsets.txt\n");
+                        printf("Parsing Offsets.txt\n");
                         consoleUpdate(NULL);
                         offsetObj = new offsetFile(offsetDBPath);
+                        printf("Done parsing\n");
+                        consoleUpdate(NULL);
                     }
                     if(offsetObj != nullptr) {
                         //printf("Trying to find offset in Offsets.txt\n");
@@ -381,16 +328,16 @@ int load_mods(FILE* f_arc) {
                         load_mod(backup_file.c_str(), offset, f_arc);
 
                         remove(backup_file.c_str());
-                        log(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, dir->d_name);
-                        consoleUpdate(NULL);
+                        //printf(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, dir->d_name);
+                        //consoleUpdate(NULL);
                     } else {
                         std::string mod_file = std::string(manager_root) + mod_dir + "/" + dir->d_name;
                         if (installing == INSTALL) {
                             appletSetCpuBoostMode(ApmCpuBoostMode_Type1);
                             load_mod(mod_file.c_str(), offset, f_arc);
                             appletSetCpuBoostMode(ApmCpuBoostMode_Disabled);
-                            log(CONSOLE_GREEN "%s/%s\n\n" CONSOLE_RESET, mod_dir.c_str(), dir->d_name);
-                            consoleUpdate(NULL);
+                            //printf(CONSOLE_GREEN "%s/%s\n\n" CONSOLE_RESET, mod_dir.c_str(), dir->d_name);
+                            //consoleUpdate(NULL);
                         } else if (installing == UNINSTALL) {
                             char* backup_path = (char*) malloc(FILENAME_SIZE);
                             snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
@@ -398,22 +345,22 @@ int load_mods(FILE* f_arc) {
                             if(std::filesystem::exists(backup_path)) {
                                 load_mod(backup_path, offset, f_arc);
                                 remove(backup_path);
-                                log(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, mod_file.c_str());
+                                //printf(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, mod_file.c_str());
                             }
-                            else log(CONSOLE_RED "No backup found\n\n" CONSOLE_RESET);
+                            else log(CONSOLE_RED "backup '0x%x' does not exist\n" CONSOLE_RESET, offset);
                             free(backup_path);
                         }
                     }
                 } else {
-                    log(CONSOLE_RED "Found file '%s', offset not found.\nMake sure the file name and/or path is correct.\n" CONSOLE_RESET, dir->d_name);
-                    consoleUpdate(NULL);
+                    log(CONSOLE_RED "Found file '%s', offset not found.\n" CONSOLE_RESET "   Make sure the file name and/or path is correct.\n", dir->d_name);
+                    //consoleUpdate(NULL);
                 }
             }
         }
         closedir(d);
     } else {
         log(CONSOLE_RED "Failed to open mod directory '%s'\n" CONSOLE_RESET, abs_mod_dir.c_str());
-        consoleUpdate(NULL);
+        //consoleUpdate(NULL);
     }
 
     return 0;
@@ -424,8 +371,8 @@ void perform_installation() {
     std::string arc_path = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
     FILE* f_arc;
     if(!std::filesystem::exists(arc_path)) {
-      log(CONSOLE_RED "\nNo data.arc found!\n" CONSOLE_RESET);
-      log("Please use the " CONSOLE_GREEN "Data Arc Dumper" CONSOLE_RESET " first.\n");
+      log(CONSOLE_RED "\nNo data.arc found!\n" CONSOLE_RESET
+      "   Please use the " CONSOLE_GREEN "Data Arc Dumper" CONSOLE_RESET " first.\n");
       goto end;
     }
     f_arc = fopen(arc_path.c_str(), "r+b");
@@ -434,32 +381,34 @@ void perform_installation() {
         goto end;
     }
     if (installing == INSTALL)
-        log("\nInstalling mods...\n\n");
+        printf("\nInstalling mods...\n\n");
     else if (installing == UNINSTALL)
-        log("\nUninstalling mods...\n\n");
+        printf("\nUninstalling mods...\n\n");
     consoleUpdate(NULL);
     while (num_mod_dirs > 0) {
-        consoleUpdate(NULL);
+        //consoleUpdate(NULL);
         load_mods(f_arc);
     }
 
     free(mod_dirs);
     fclose(f_arc);
     if (deleteMod) {
-      log("Deleting mod files\n");
+      printf("Deleting mod files\n");
       fsdevDeleteDirectoryRecursively(rootModDir.c_str());
     }
 
 end:
-    log("Mod Installer finished.\nPress B to return to the Mod Installer.\n");
-    log("Press X to launch Smash\n\n");
     if (!errorLogs.empty()) {
-        log("Error Logs:\n");
+        printf("Error Logs:\n");
         for (std::string line : errorLogs) {
-            log(line.c_str());
+            printf(line.c_str());
         }
         errorLogs.clear();
     }
+    else
+    printf(CONSOLE_GREEN "Successful\n" CONSOLE_RESET);
+    printf("Press B to return to the Mod Installer.\n");
+    printf("Press X to launch Smash\n\n");
 }
 
 void modInstallerMainLoop(int kDown)
@@ -490,7 +439,6 @@ void modInstallerMainLoop(int kDown)
         bool start_install = false;
         deleteMod = false;
         if(kHeld & KEY_L && kHeld & KEY_R && kDown & KEY_Y) {
-          log("del\n");
           deleteMod = true;
           start_install = true;
           installing = UNINSTALL;
@@ -504,7 +452,7 @@ void modInstallerMainLoop(int kDown)
             installing = UNINSTALL;
         }
         bool found_dir = false;
-        log("\n");
+        printf("\n");
 
         DIR* d = opendir(mods_root);
         struct dirent *dir;
@@ -518,21 +466,21 @@ void modInstallerMainLoop(int kDown)
                     std::string directory = "mods/" + d_name;
 
                     if (curr_folder_index == mod_folder_index) {
-                        log("%s> ", CONSOLE_GREEN);
+                        printf("%s> ", CONSOLE_GREEN);
                         if (start_install) {
                             found_dir = true;
                             add_mod_dir(directory.c_str());
                         }
                     }
                     else if(std::find(installIDXs.begin(), installIDXs.end(), curr_folder_index) != installIDXs.end()) {
-                        log(CONSOLE_CYAN);
+                        printf(CONSOLE_CYAN);
                         if (start_install) {
                             add_mod_dir(directory.c_str());
                         }
                     }
                     if(curr_folder_index < 42 || curr_folder_index <= mod_folder_index)
-                        log("%s\n", dir->d_name);
-                    log(CONSOLE_RESET);
+                        printf("%s\n", dir->d_name);
+                    printf(CONSOLE_RESET);
                     curr_folder_index++;
                 }
             }
@@ -544,20 +492,21 @@ void modInstallerMainLoop(int kDown)
                 mod_folder_index = 0;
 
             if (mod_folder_index == curr_folder_index) {
-                log(CONSOLE_GREEN "> ");
+                printf(CONSOLE_GREEN "> ");
                 if (start_install) {
                     found_dir = true;
                     add_mod_dir("backups");
                 }
             }
 
-            if(curr_folder_index < 42 || curr_folder_index <= mod_folder_index)log("backups\n");
+            if(curr_folder_index < 42 || curr_folder_index <= mod_folder_index)
+                printf("backups\n");
 
             if (mod_folder_index == curr_folder_index)
-                log(CONSOLE_RESET);
+                printf(CONSOLE_RESET);
 
             closedir(d);
-            log(CONSOLE_ESC(s) CONSOLE_ESC(46;1H) GREEN "A" RESET "=install "
+            printf(CONSOLE_ESC(s) CONSOLE_ESC(46;1H) GREEN "A" RESET "=install "
                    GREEN "Y" RESET "=uninstall " GREEN "L+R+Y" RESET "=delete "
                    GREEN "R-Stick" RESET "=scroll " GREEN "ZR" RESET "=multi-select "
                    GREEN "B" RESET "=main menu" CONSOLE_ESC(u));
