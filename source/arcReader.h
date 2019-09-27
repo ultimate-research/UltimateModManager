@@ -7,15 +7,11 @@
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
 
-#define LOADARRAY(arr,type,count) arr = (type *) malloc(sizeof(type) * count); for (size_t i = 0; i < count; i++) reader.load(arr[i])
+#define LOADARRAY(arr,type,count) arr = (type *) malloc(sizeof(type) * (count)); for (size_t i = 0; i < count; i++) reader.load(arr[i])
 
 struct membuf : std::streambuf
 {
     membuf(char* begin, char* end) {
-        this->setg(begin, begin, end);
-    }
-
-    void setptrs(char* begin, char* end) {
         this->setg(begin, begin, end);
     }
 };
@@ -26,11 +22,6 @@ public:
   std::istream& is;
   u64 pos;
   ObjectStream(std::istream& _is) : is(_is) { pos = 0; };
-  template <class T>
-  ObjectStream& operator>>(T& v) {
-    is.read((char*)&v, sizeof(T));
-    return *this;
-  }
     template< class T >
     void load( T& v ) {
         is.read((char*)&v, sizeof(v));
@@ -217,7 +208,9 @@ private:
         LOADARRAY(directoryOffsets, _sDirectoryOffset, fsHeader.DirectoryOffsetCount1 + fsHeader.DirectoryOffsetCount2 + extraFolder);
         LOADARRAY(directoryChildHashGroup, _sHashIndexGroup, fsHeader.DirectoryHashSearchCount);
 
-        return;
+        printf("fsHeader.FileInformationCount: %d\n", fsHeader.FileInformationCount);
+        printf("fsHeader.SubFileCount2: %d\n", fsHeader.SubFileCount2);
+        printf("extraCount: %d\n", extraCount);
 
         // file information tables
         LOADARRAY(fileInfoV2, _sFileInformationV2, fsHeader.FileInformationCount + fsHeader.SubFileCount2 + extraCount);
@@ -293,7 +286,6 @@ private:
         free(directoryList);
         free(directoryOffsets);
         free(directoryChildHashGroup);
-        return;
 
         // file information tables
         free(fileInfoV2);
