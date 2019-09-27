@@ -20,13 +20,6 @@ struct membuf : std::streambuf
     }
 };
 
-template< class T >
-T load(std::istream& is) {
-    T v;
-    is.read((char*)&v, sizeof(v));
-    return v;
-}
-
 class ObjectStream
 {
 public:
@@ -200,8 +193,6 @@ private:
         LOADARRAY(streamIndexToFile, _sStreamIndexToOffset, streamHeader.StreamIndexToOffsetCount);
         LOADARRAY(streamOffsets, _sStreamOffset, streamHeader.StreamOffsetCount);
 
-        printf("%d\n", (s32) reader.pos);
-
         // Unknown
         u32 unkCount1, unkCount2;
         reader.load(unkCount1);
@@ -209,11 +200,9 @@ private:
 
         printf("UnkCount1: %d\n", unkCount1);
         printf("UnkCount2: %d\n", unkCount2);
-        return;
 
         LOADARRAY(fileInfoUnknownTable, _sFileInformationUnknownTable, unkCount2);
         LOADARRAY(filePathToIndexHashGroup, _sHashIndexGroup, unkCount1);
-        return;
 
         // FileTables
         
@@ -223,24 +212,17 @@ private:
         // directory tables
 
         // directory hashes by length and index to directory probably 0x6000 something
-        /*Console.WriteLine(reader.BaseStream.Position.ToString("X"));
-        directoryHashGroup = reader.ReadType<_sHashIndexGroup>(fsHeader.DirectoryCount);
-        
-        directoryList = reader.ReadType<_sDirectoryList>(fsHeader.DirectoryCount);
-        
-        directoryOffsets = reader.ReadType<_sDirectoryOffset>(fsHeader.DirectoryOffsetCount1 + fsHeader.DirectoryOffsetCount2 + extraFolder);
-        
-        directoryChildHashGroup = reader.ReadType<_sHashIndexGroup>(fsHeader.DirectoryHashSearchCount);
+        LOADARRAY(directoryHashGroup, _sHashIndexGroup, fsHeader.DirectoryCount);
+        LOADARRAY(directoryList, _sDirectoryList, fsHeader.DirectoryCount);
+        LOADARRAY(directoryOffsets, _sDirectoryOffset, fsHeader.DirectoryOffsetCount1 + fsHeader.DirectoryOffsetCount2 + extraFolder);
+        LOADARRAY(directoryChildHashGroup, _sHashIndexGroup, fsHeader.DirectoryHashSearchCount);
+
+        return;
 
         // file information tables
-        Console.WriteLine(reader.BaseStream.Position.ToString("X"));
-        fileInfoV2 = reader.ReadType<_sFileInformationV2>(fsHeader.FileInformationCount + fsHeader.SubFileCount2 + extraCount);
-        
-        fileInfoSubIndex = reader.ReadType<_sFileInformationSubIndex>(fsHeader.FileInformationSubIndexCount + fsHeader.SubFileCount2 + extraCount2);
-        
-        subFiles = reader.ReadType<_sSubFileInfo>(fsHeader.SubFileCount + fsHeader.SubFileCount2 + extraSubCount);
-        Console.WriteLine("End:" + reader.BaseStream.Position.ToString("X"));
-        */
+        LOADARRAY(fileInfoV2, _sFileInformationV2, fsHeader.FileInformationCount + fsHeader.SubFileCount2 + extraCount);
+        LOADARRAY(fileInfoSubIndex, _sFileInformationSubIndex, fsHeader.FileInformationSubIndexCount + fsHeader.SubFileCount2 + extraCount2);
+        LOADARRAY(subFiles, _sSubFileInfo, fsHeader.SubFileCount + fsHeader.SubFileCount2 + extraSubCount);
     }
 
     char* ReadCompressedTable(std::fstream& reader, s32* tableSize)
@@ -297,16 +279,26 @@ private:
         free(streamNameToHash);
         free(streamIndexToFile);
         free(streamOffsets);
-        return;
 
         // Unknown
         free(fileInfoUnknownTable);
         free(filePathToIndexHashGroup);
-        return;
 
         // FileTables
         free(fileInfoPath);
         free(fileInfoIndex);
+
+        // dir info
+        free(directoryHashGroup);
+        free(directoryList);
+        free(directoryOffsets);
+        free(directoryChildHashGroup);
+        return;
+
+        // file information tables
+        free(fileInfoV2);
+        free(fileInfoSubIndex);
+        free(subFiles);
     }
 
 public:

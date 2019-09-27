@@ -186,16 +186,16 @@ struct _sSearchHashHeader
 struct _sHashIndexGroup
 {
   u32 Hash;
-  s16 index;
+  s32 index;
 };
 struct _sHashGroup
 {
   u32 FilePathHash;
-  s16 FilePathLengthAndIndex;
+  s32 FilePathLengthAndIndex;
   u32 FolderHash;
   s16 FolderHashLengthAndIndex;
   u32 FileNameHash;
-  s16 FileNameLength;
+  s32 FileNameLength;
   u32 ExtensionHash;
   u32 ExtensionLength;
 };
@@ -223,7 +223,7 @@ struct _sStreamNameToHash
 };
 struct _sStreamIndexToOffset
 {
-  s16 FileIndex;
+  s32 FileIndex;
 };
 struct _sStreamOffset
 {
