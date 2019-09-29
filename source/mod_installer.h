@@ -111,6 +111,8 @@ int getRegion() {
     return regionMap.find((char*)&languageCode)->second;
 }
 
+int regionIndex = getRegion();
+
 int seek_files(FILE* f, uint64_t offset, FILE* arc) {
     // Set file pointers to start of file and offset respectively
     int ret = fseek(f, 0, SEEK_SET);
@@ -219,7 +221,6 @@ int load_mod(const char* path, long offset, FILE* arc) {
         if(arcReader != nullptr) {
             std::string arcFileName = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
             bool regional;
-            int regionIndex = getRegion();
             arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional, regionIndex);
             if(modSize > decompSize) {
               log(CONSOLE_RED "%s can not be larger than expected uncompressed size\n" CONSOLE_RESET, path);
@@ -375,7 +376,6 @@ int load_mods(FILE* f_arc) {
                         std::string arcFileName = (mod_dir.substr(mod_dir.find('/', mod_dir.find('/')+1) + 1) + "/" + dir->d_name);
                         u32 compSize, decompSize;
                         bool regional;
-                        int regionIndex = getRegion();
                         arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional, regionIndex);
                     }
                 }
