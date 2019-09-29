@@ -3,6 +3,7 @@
 #include <istream>
 #include <streambuf>
 #include "arcStructs.h"
+#include "crc32.h"
 
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
@@ -32,6 +33,9 @@ public:
 class arcReader
 {
 private:
+  std::map<u32, _sFileInformationV2> pathToFileInfo;
+  std::vector<u32> FilePaths;
+  u64 numFiles;
   ZSTD_DStream* dstream;
   std::string arcPath;
 
@@ -97,8 +101,6 @@ private:
       printf("ARC magic does not match");  // add proper errors
       return;
     }
-    printf("Magic: 0x%lx\n", header.Magic);
-    printf("FileSystemOffset: 0x%lx\n", header.FileSystemOffset);
     reader.seekg(header.FileSystemOffset);
     if (header.FileDataOffset < 0x8824AF68)
     {
@@ -107,15 +109,13 @@ private:
     }
     else
     {
-      printf("Version > 1.0.0\n");
       s32 tableSize;
       char* table = ReadCompressedTable(reader, &tableSize);
 
       if (table) {
         ReadFileSystem(table, tableSize);
+        free(table);
       }
-
-      free(table);
     }
     reader.close();
     ZSTD_freeDStream(dstream);
@@ -154,29 +154,11 @@ private:
             reader.is.seekg(0x3C, reader.is.beg);
         }
 
-        printf("TableFileSize: %d\n", fsHeader.TableFileSize);
-        printf("FileInformationPathCount: %d\n", fsHeader.FileInformationPathCount);
-        printf("FileInformationIndexCount: %d\n", fsHeader.FileInformationIndexCount);
-        printf("DirectoryCount: %d\n", fsHeader.DirectoryCount);
-
-        printf("extraFolder: %d\n", extraFolder);
-        printf("extraCount: %d\n", extraCount);
-        printf("extraCount2: %d\n", extraCount2);
-        printf("extraSubCount: %d\n", extraSubCount);
-
-        printf("Version: %lx\n", (u64)Version);
-
         // skip this for now
         LOADARRAY(regionalInfo, _sRegionalInfo, 12);
 
         // Streams
         reader.load(streamHeader);
-
-        printf("streamHeader.UnkCount: %d\n", streamHeader.UnkCount);
-        printf("streamHeader.StreamHashCount: %d\n", streamHeader.StreamHashCount);
-        printf("streamHeader.StreamHashCount: %d\n", streamHeader.StreamHashCount);
-        printf("streamHeader.StreamIndexToOffsetCount: %d\n", streamHeader.StreamIndexToOffsetCount);
-        printf("streamHeader.StreamOffsetCount: %d\n", streamHeader.StreamOffsetCount);
 
         LOADARRAY(streamUnk, _sStreamUnk, streamHeader.UnkCount);
         LOADARRAY(streamHashToName, _sStreamHashToName, streamHeader.StreamHashCount);
@@ -188,9 +170,6 @@ private:
         u32 unkCount1, unkCount2;
         reader.load(unkCount1);
         reader.load(unkCount2);
-
-        printf("UnkCount1: %d\n", unkCount1);
-        printf("UnkCount2: %d\n", unkCount2);
 
         LOADARRAY(fileInfoUnknownTable, _sFileInformationUnknownTable, unkCount2);
         LOADARRAY(filePathToIndexHashGroup, _sHashIndexGroup, unkCount1);
@@ -208,12 +187,9 @@ private:
         LOADARRAY(directoryOffsets, _sDirectoryOffset, fsHeader.DirectoryOffsetCount1 + fsHeader.DirectoryOffsetCount2 + extraFolder);
         LOADARRAY(directoryChildHashGroup, _sHashIndexGroup, fsHeader.DirectoryHashSearchCount);
 
-        printf("fsHeader.FileInformationCount: %d\n", fsHeader.FileInformationCount);
-        printf("fsHeader.SubFileCount2: %d\n", fsHeader.SubFileCount2);
-        printf("extraCount: %d\n", extraCount);
-
         // file information tables
-        LOADARRAY(fileInfoV2, _sFileInformationV2, fsHeader.FileInformationCount + fsHeader.SubFileCount2 + extraCount);
+        numFiles = fsHeader.FileInformationCount + fsHeader.SubFileCount2 + extraCount;
+        LOADARRAY(fileInfoV2, _sFileInformationV2, numFiles);
         LOADARRAY(fileInfoSubIndex, _sFileInformationSubIndex, fsHeader.FileInformationSubIndexCount + fsHeader.SubFileCount2 + extraCount2);
         LOADARRAY(subFiles, _sSubFileInfo, fsHeader.SubFileCount + fsHeader.SubFileCount2 + extraSubCount);
     }
@@ -222,8 +198,6 @@ private:
     {
         _sCompressedTableHeader compHeader;
         reader.read((char*)&compHeader, sizeof(compHeader));
-
-        printf("CompHeader: 0x%x, %d, %d, %d\n", compHeader.DataOffset, compHeader.DecompressedSize, compHeader.CompressedSize, compHeader.SectionSize);
 
         char* tableBytes;
         s32 size;
@@ -243,7 +217,6 @@ private:
         {
             char* compressedTableBytes = (char*) malloc(compHeader.CompressedSize);
             u64 currPos = reader.tellg();
-            printf("Reading compressed table at %lx\n", currPos);
             reader.read(compressedTableBytes, compHeader.CompressedSize);
 
             size = compHeader.DecompressedSize;
@@ -293,16 +266,163 @@ private:
         free(subFiles);
     }
 
+    /*public void GetFileInformation(string filepath, long& offset, u32& compSize, u32& decompSize, bool& regional, int regionIndex = 0)
+    {
+        offset = 0;
+        compSize = 0;
+        decompSize = 0;
+        regional = false;
+
+        if ((Version != 0x00010000 && offsetMap.count(filepath) == 0) ||
+            (Version == 0x00010000 && !pathToFileInfoV1.ContainsKey(filepath)))
+        {   //
+            // check for stream file
+            var strcrc = CRC32.Crc32C(filepath);
+            if(pathCrc32ToStreamInfo.ContainsKey(strcrc))
+            {
+                var fileinfo = pathCrc32ToStreamInfo[strcrc];
+
+                if (fileinfo.Flags == 1 || fileinfo.Flags == 2)
+                {
+                    if (fileinfo.Flags == 2 && regionIndex > 5)
+                        regionIndex = 0;
+
+                    var streamindex = streamIndexToFile[(fileinfo.NameIndex >> 8) + regionIndex].FileIndex;
+                    var offsetinfo = streamOffsets[streamindex];
+                    offset = offsetinfo.Offset;
+                    compSize = (uint)offsetinfo.Size;
+                    decompSize = (uint)offsetinfo.Size;
+                    regional = true;
+                }
+                else
+                {
+                    var streamindex = streamIndexToFile[fileinfo.NameIndex >> 8].FileIndex;
+                    var offsetinfo = streamOffsets[streamindex];
+                    offset = offsetinfo.Offset;
+                    compSize = (uint)offsetinfo.Size;
+                    decompSize = (uint)offsetinfo.Size;
+                }
+                return;
+            }
+
+            return;
+        }
+        if (IsRegional(filepath))
+            regional = true;
+
+        if(Version == 0x00010000)
+            GetFileInformation(pathToFileInfoV1[filepath], offset, compSize, decompSize, regionIndex);
+        else
+            GetFileInformation(pathToFileInfo[filepath], offset, compSize, decompSize, regionIndex);
+    }*/
+
+    void GetFileInformation(_sFileInformationV2 fileinfo, long& offset, u32& compSize, u32& decompSize, int regionIndex = 0)
+    {
+        auto fileIndex = fileInfoIndex[fileinfo.IndexIndex];
+
+        //redirect
+        if ((fileinfo.Flags & 0x00000010) == 0x10)
+        {
+            fileinfo = fileInfoV2[fileIndex.FileInformationIndex];
+        }
+
+        auto path = fileInfoPath[fileinfo.PathIndex];
+        auto subIndex = fileInfoSubIndex[fileinfo.SubIndexIndex];
+
+        auto subFile = subFiles[subIndex.SubFileIndex];
+        auto directoryOffset = directoryOffsets[subIndex.DirectoryOffsetIndex];
+
+        //regional
+        if ((fileinfo.Flags & 0x00008000) == 0x8000)
+        {
+            subIndex = fileInfoSubIndex[fileinfo.SubIndexIndex + 1 + regionIndex];
+            subFile = subFiles[subIndex.SubFileIndex];
+            directoryOffset = directoryOffsets[subIndex.DirectoryOffsetIndex];
+        }
+
+        offset = (header.FileDataOffset + directoryOffset.Offset + (subFile.Offset << 2));
+        compSize = subFile.CompSize;
+        decompSize = subFile.DecompSize;
+    }
+
+    void InitializePathToFileInfo()
+    {
+        //foreach (var v in streamNameToHash)
+        //    pathCrc32ToStreamInfo.Add(v.Hash, v);
+        
+        if (Version == 0x00010000)
+        {
+            // for (int i = 0; i < FilePaths.Count; i++)
+            // {
+            //     if (!pathToFileInfoV1.ContainsKey(FilePaths[i]))
+            //         pathToFileInfoV1.Add(FilePaths[i], fileInfoV1[i]);
+            // }
+        }
+        else
+        {
+            for (size_t i = 0; i < FilePaths.size(); i++)
+            {
+                if (pathToFileInfo.count(FilePaths[i]) == 0)
+                    pathToFileInfo.try_emplace(FilePaths[i], fileInfoV2[i]);
+            }
+        }
+    }
+
+    std::vector<u32> GetFileList()
+    {
+        //if (Version == 0x00010000)
+        //    return GetFileListV1();
+        //else
+            return GetFileListV2();
+    }
+
+    std::vector<u32> GetFileListV2()
+    {
+        std::vector<u32> filePaths;
+
+        for (size_t i = 0; i < numFiles; i++)
+        {
+            auto fileInfo = fileInfoV2[i];
+            auto path = fileInfoPath[fileInfo.PathIndex];
+            filePaths.push_back(path.Path);
+        }
+
+        return filePaths;
+    }
+
 public:
   int Version;
   bool Initialized;
   arcReader(std::string arcPath)
   {
     this->arcPath = arcPath;
+
+    printf("Initializing from headers...\n");
     Init();
-    //FilePaths = GetFileList();
+
+    printf("Initializing file paths...\n");
+    FilePaths = GetFileList();
+
     //StreamFilePaths = GetStreamFileList();
-    //InitializePathToFileInfo();
+
+
+    printf("Initializing path to file info...\n\n");
+    InitializePathToFileInfo();
+
+    const char* path = "ui/message/msg_melee.msbt";
+    u32 path_hash = crc32(path, strlen(path));
+
+    printf("File Information for path %s\n", path);
+    
+    long offset;
+    u32 compSize;
+    u32 decompSize;
+    GetFileInformation(pathToFileInfo[path_hash], offset, compSize, decompSize);
+    printf("Offset: 0x%lx\n", offset);
+    printf("Compressed Size: 0x%x\n", compSize);
+    printf("Decompressed Size: 0x%x\n\n", decompSize);
+
+    consoleUpdate(NULL);
   }
 
   ~arcReader()
