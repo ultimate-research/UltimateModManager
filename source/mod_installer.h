@@ -32,6 +32,12 @@ bool deleteMod = false;
 
 char** mod_dirs = NULL;
 size_t num_mod_dirs = 0;
+typedef struct ModFile {
+    std::string mod_path;
+    long offset;
+} ModFile;
+std::vector<ModFile> mod_files;
+
 bool installation_finish = false;
 s64 mod_folder_index = 0;
 ZSTD_CCtx* compContext = nullptr;
@@ -293,7 +299,81 @@ void remove_last_mod_dir() {
     num_mod_dirs--;
 }
 
-int load_mods(FILE* f_arc) {
+void console_set_status_progress(size_t progress, size_t max) {
+    console_set_status("\n" GREEN "Mod Installer" RESET
+        "\t\t\t\t\tMods Installed: \t"
+        YELLOW "%lu" RESET
+        BLUE "/%lu" RESET, 
+        progress, max);
+}
+
+void load_mods(FILE* f_arc) {
+    size_t num_mod_files = mod_files.size();
+    size_t i = 0;
+    console_set_status_progress(i, num_mod_files);
+    consoleUpdate(NULL);
+
+    for (ModFile mod_file : mod_files) {
+        std::string mod_path = mod_file.mod_path;
+        std::string rel_mod_dir = mod_path.substr(strlen(mods_root));
+        std::string arcFileName = rel_mod_dir.substr(rel_mod_dir.find('/')+1);
+        long offset = mod_file.offset;
+        if(!offset) {
+            if(arcReader == nullptr) {
+                printf("Parsing data.arc\n");
+                consoleUpdate(NULL);
+                fclose(f_arc);
+                arcReader = new ArcReader(arc_path.c_str());
+                f_arc = fopen(arc_path.c_str(), "r+b");
+                printf("Done parsing\n");
+                consoleUpdate(NULL);
+            }
+            if(arcReader != nullptr) {
+                u32 compSize, decompSize;
+                bool regional;
+                arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional);
+            }
+        }
+        
+        if (!offset) {
+            log(CONSOLE_RED "Found file '%s/%s', offset not found.\n" CONSOLE_RESET "   Make sure the file name and/or path is correct.\n", rel_mod_dir, arcFileName.c_str());
+            continue;
+        }
+
+        if (mod_path.find("backups") != std::string::npos) {
+            load_mod(mod_path.c_str(), offset, f_arc);
+
+            remove(mod_path.c_str());
+            debug_log(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, mod_path.c_str());
+        } else {
+            if (installing == INSTALL) {
+                appletSetCpuBoostMode(ApmCpuBoostMode_Type1);
+                load_mod(mod_path.c_str(), offset, f_arc);
+                appletSetCpuBoostMode(ApmCpuBoostMode_Disabled);
+                debug_log(CONSOLE_GREEN "%s\n\n" CONSOLE_RESET, mod_path.c_str());
+            } else if (installing == UNINSTALL) {
+                char* backup_path = (char*) malloc(FILENAME_SIZE);
+                snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
+
+                if(std::filesystem::exists(backup_path)) {
+                    load_mod(backup_path, offset, f_arc);
+                    remove(backup_path);
+                    debug_log(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, backup_path);
+                }
+                else log(CONSOLE_RED "backup '0x%x' does not exist\n" CONSOLE_RESET, offset);
+                free(backup_path);
+            }
+        }
+
+        i++;
+        console_set_status_progress(i, num_mod_files);
+        consoleUpdate(NULL);
+    }
+
+    mod_files.clear();
+}
+
+int enumerate_mod_files(FILE* f_arc) {
     std::string mod_dir = mod_dirs[num_mod_dirs-1];
 
     remove_last_mod_dir();
@@ -316,52 +396,12 @@ int load_mods(FILE* f_arc) {
                 add_mod_dir(new_mod_dir.c_str());
             } else {
                 long offset = hex_to_u64(dir->d_name);
-                if(!offset) {
-                    if(arcReader == nullptr) {
-                        printf("Parsing data.arc\n");
-                        consoleUpdate(NULL);
-                        fclose(f_arc);
-                        arcReader = new ArcReader(arc_path.c_str());
-                        f_arc = fopen(arc_path.c_str(), "r+b");
-                        printf("Done parsing\n");
-                        consoleUpdate(NULL);
-                    }
-                    if(arcReader != nullptr) {
-                        std::string arcFileName = (mod_dir.substr(mod_dir.find('/', mod_dir.find('/')+1) + 1) + "/" + dir->d_name);
-                        u32 compSize, decompSize;
-                        bool regional;
-                        arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional);
-                    }
-                }
-                if(offset){
-                    if (mod_dir == "backups") {
-                        std::string backup_file = std::string(backups_root) + std::string(dir->d_name);
-                        load_mod(backup_file.c_str(), offset, f_arc);
-
-                        remove(backup_file.c_str());
-                        debug_log(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, dir->d_name);
-                    } else {
-                        std::string mod_file = std::string(manager_root) + mod_dir + "/" + dir->d_name;
-                        if (installing == INSTALL) {
-                            appletSetCpuBoostMode(ApmCpuBoostMode_Type1);
-                            load_mod(mod_file.c_str(), offset, f_arc);
-                            appletSetCpuBoostMode(ApmCpuBoostMode_Disabled);
-                            debug_log(CONSOLE_GREEN "%s/%s\n\n" CONSOLE_RESET, mod_dir.c_str(), dir->d_name);
-                        } else if (installing == UNINSTALL) {
-                            char* backup_path = (char*) malloc(FILENAME_SIZE);
-                            snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
-
-                            if(std::filesystem::exists(backup_path)) {
-                                load_mod(backup_path, offset, f_arc);
-                                remove(backup_path);
-                                debug_log(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, mod_file.c_str());
-                            }
-                            else log(CONSOLE_RED "backup '0x%x' does not exist\n" CONSOLE_RESET, offset);
-                            free(backup_path);
-                        }
-                    }
+                if (mod_dir == "backups") {
+                    std::string backup_file = std::string(backups_root) + std::string(dir->d_name);
+                    mod_files.push_back(ModFile{backup_file, offset});
                 } else {
-                    log(CONSOLE_RED "Found file '%s/%s', offset not found.\n" CONSOLE_RESET "   Make sure the file name and/or path is correct.\n", mod_dir.c_str(), dir->d_name);
+                    std::string mod_file = std::string(manager_root) + mod_dir + "/" + dir->d_name;
+                    mod_files.push_back(ModFile{mod_file, offset});
                 }
             }
         }
@@ -393,10 +433,13 @@ void perform_installation() {
         printf("\nUninstalling mods...\n\n");
     consoleUpdate(NULL);
     while (num_mod_dirs > 0) {
-        load_mods(f_arc);
+        enumerate_mod_files(f_arc);
     }
 
     free(mod_dirs);
+
+    load_mods(f_arc);
+
     fclose(f_arc);
     if (deleteMod) {
       printf("Deleting mod files\n");
@@ -512,6 +555,7 @@ void modInstallerMainLoop(int kDown)
                 printf(CONSOLE_RESET);
 
             closedir(d);
+            console_set_status("\n" GREEN "Mod Installer" RESET);
             printf(CONSOLE_ESC(s) CONSOLE_ESC(46;1H) GREEN "A" RESET "=install "
                    GREEN "Y" RESET "=uninstall " GREEN "L+R+Y" RESET "=delete "
                    GREEN "R-Stick" RESET "=scroll " GREEN "ZR" RESET "=multi-select "
