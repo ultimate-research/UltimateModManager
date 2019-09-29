@@ -103,6 +103,7 @@ void MainApplication::modInstallerMain(u64 kDown, u64 kUp, u64 kHeld, bool Touch
             show_open_main = true;
         }
 
+<<<<<<< HEAD
         //this->layout1->textOverlays.clear();
         //this->layout1->Clear();
         //this->layout1->helloText = pu::ui::elm::ScrollableTextBlock::New(0, 0, "", 25, false);
@@ -114,6 +115,14 @@ void MainApplication::modInstallerMain(u64 kDown, u64 kUp, u64 kHeld, bool Touch
         this->layout1->modInstallerMenu->SetVisible(false);
         this->layout1->modInstallerMenu->ClearItems();
         __printf("Please select a mods folder. Press A to install, Y to uninstall.\n\n");
+=======
+        this->layout1->textOverlays.clear();
+        this->layout1->Clear();
+        this->layout1->helloText = pu::ui::elm::ScrollableTextBlock::New(0, 0, "", 25, false);
+        textBlock = this->layout1->helloText;
+        this->layout1->Add(textBlock);
+        _printf("Please select a mods folder. Press A to install, Y to uninstall.\n\n");
+>>>>>>> 6898829a1e9aa72e0e4906693255b3e6a98f958c
         if (kHeld & KEY_RSTICK_DOWN) {
             svcSleepThread(7e+7);
             mod_folder_index++;
