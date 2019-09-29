@@ -13,7 +13,7 @@
 #include "crc32.h"
 #include <stdarg.h>
 
-#define IS_DEBUG
+//#define IS_DEBUG
 
 #define FILENAME_SIZE 0x130
 #define FILE_READ_SIZE 0x20000
@@ -171,6 +171,10 @@ int load_mod(const char* path, long offset, FILE* arc) {
         }
         if(arcReader != nullptr) {
             std::string arcFileName = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
+            size_t semicolonIndex;
+            if ((semicolonIndex = arcFileName.find(";")) != std::string::npos)
+                arcFileName[semicolonIndex] = ':';
+
             u32 path_hash = crc32(arcFileName.c_str(), arcFileName.size());
             bool regional;
             arcReader->GetFileInformation(path_hash, offset, compSize, decompSize, regional);
@@ -326,6 +330,9 @@ int load_mods(FILE* f_arc) {
                     }
                     if(arcReader != nullptr) {
                         std::string arcFileName = (mod_dir.substr(mod_dir.find('/', mod_dir.find('/')+1) + 1) + "/" + dir->d_name);
+                        size_t semicolonIndex;
+                        if ((semicolonIndex = arcFileName.find(";")) != std::string::npos)
+                            arcFileName[semicolonIndex] = ':';
                         u32 path_hash = crc32(arcFileName.c_str(), arcFileName.size());
                         u32 compSize, decompSize;
                         bool regional;
