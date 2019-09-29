@@ -174,13 +174,8 @@ int load_mod(const char* path, long offset, FILE* arc) {
         }
         if(arcReader != nullptr) {
             std::string arcFileName = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
-            size_t semicolonIndex;
-            if ((semicolonIndex = arcFileName.find(";")) != std::string::npos)
-                arcFileName[semicolonIndex] = ':';
-
-            u32 path_hash = crc32(arcFileName.c_str(), arcFileName.size());
             bool regional;
-            arcReader->GetFileInformation(path_hash, offset, compSize, decompSize, regional);
+            arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional);
             if(modSize > decompSize) {
               log(CONSOLE_RED "%s can not be larger than expected uncompressed size\n" CONSOLE_RESET, path);
               return -1;
@@ -333,13 +328,9 @@ int load_mods(FILE* f_arc) {
                     }
                     if(arcReader != nullptr) {
                         std::string arcFileName = (mod_dir.substr(mod_dir.find('/', mod_dir.find('/')+1) + 1) + "/" + dir->d_name);
-                        size_t semicolonIndex;
-                        if ((semicolonIndex = arcFileName.find(";")) != std::string::npos)
-                            arcFileName[semicolonIndex] = ':';
-                        u32 path_hash = crc32(arcFileName.c_str(), arcFileName.size());
                         u32 compSize, decompSize;
                         bool regional;
-                        arcReader->GetFileInformation(path_hash, offset, compSize, decompSize, regional);
+                        arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional);
                     }
                 }
                 if(offset){

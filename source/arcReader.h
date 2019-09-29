@@ -252,7 +252,42 @@ class ArcReader {
     }
 
    public:
-    void GetFileInformation(u32 path_hash, long& offset, u32& compSize, u32& decompSize, bool& regional, int regionIndex = 0) {
+    static const size_t NUM_REGIONS = 14;
+    std::string RegionTags[NUM_REGIONS] =
+    {
+        "+jp_ja",
+        "+us_en",
+        "+us_fr",
+        "+us_es",
+        "+eu_en",
+        "+eu_fr",
+        "+eu_es",
+        "+eu_de",
+        "+eu_nl",
+        "+eu_it",
+        "+eu_ru",
+        "+kr_ko",
+        "+zh_cn",
+        "+zh_tw"
+    };
+
+    void GetFileInformation(std::string arcFileName, long& offset, u32& compSize, u32& decompSize, bool& regional, int regionIndex = 1) {
+        size_t semicolonIndex;
+        if ((semicolonIndex = arcFileName.find(";")) != std::string::npos)
+            arcFileName[semicolonIndex] = ':';
+
+        for (size_t i = 0; i < NUM_REGIONS; i++) {
+            std::string regionTag = RegionTags[i];
+            size_t pos;
+            if ((pos = arcFileName.find(regionTag)) != std::string::npos) {
+                arcFileName.erase(pos, regionTag.size());
+                regionIndex = i;
+                break;
+            }
+        }
+
+        u32 path_hash = crc32(arcFileName.c_str(), arcFileName.size());
+
         offset = 0;
         compSize = 0;
         decompSize = 0;
@@ -295,7 +330,7 @@ class ArcReader {
             GetFileInformation(pathToFileInfo[path_hash], offset, compSize, decompSize, regionIndex);
     }
 
-    void GetFileInformation(_sFileInformationV2 fileinfo, long& offset, u32& compSize, u32& decompSize, int regionIndex = 0) {
+    void GetFileInformation(_sFileInformationV2 fileinfo, long& offset, u32& compSize, u32& decompSize, int regionIndex) {
         auto fileIndex = fileInfoIndex[fileinfo.IndexIndex];
 
         //redirect
@@ -320,7 +355,7 @@ class ArcReader {
         decompSize = subFile.DecompSize;
     }
 
-    void GetFileInformation(_sFileInformationV1 fileInfo, long& offset, u32& compSize, u32& decompSize, int regionIndex = 0) {
+    void GetFileInformation(_sFileInformationV1 fileInfo, long& offset, u32& compSize, u32& decompSize, int regionIndex) {
         // var subFile = subFiles[fileInfo.SubFile_Index];
         // var dirIndex = directoryList[fileInfo.DirectoryIndex >> 8].FullPathHashLengthAndIndex >> 8;
         // var directoryOffset = directoryOffsets[dirIndex];
