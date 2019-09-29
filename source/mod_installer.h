@@ -22,7 +22,6 @@
 #define UNINSTALL true
 
 ArcReader* arcReader = nullptr;
-std::string arc_path;
 
 bool installing = INSTALL;
 bool deleteMod = false;
@@ -38,6 +37,7 @@ std::vector<std::string> errorLogs;
 const char* manager_root = "sdmc:/UltimateModManager/";
 const char* mods_root = "sdmc:/UltimateModManager/mods/";
 const char* backups_root = "sdmc:/UltimateModManager/backups/";
+std::string arc_path = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
 
 void log(const char* fmt, ...) {
     va_list args;
@@ -374,9 +374,9 @@ int load_mods(FILE* f_arc) {
 
 void perform_installation() {
     std::string rootModDir = std::string(manager_root) + mod_dirs[num_mod_dirs-1];
-    arc_path = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
+
     FILE* f_arc;
-    if(!std::filesystem::exists(arc_path)) {
+    if(!std::filesystem::exists(arc_path) || std::filesystem::is_directory(std::filesystem::status(arc_path))) {
       log(CONSOLE_RED "\nNo data.arc found!\n" CONSOLE_RESET
       "   Please use the " CONSOLE_GREEN "Data Arc Dumper" CONSOLE_RESET " first.\n");
       goto end;
