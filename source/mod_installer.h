@@ -15,6 +15,10 @@
 
 //#define IS_DEBUG
 
+#ifdef IS_DEBUG
+#include <ctime>
+#endif
+
 #define FILENAME_SIZE 0x130
 #define FILE_READ_SIZE 0x20000
 
@@ -45,24 +49,23 @@ void log(const char* fmt, ...) {
     int len = vsnprintf(nullptr, 0, fmt, args) + 1;
     char* buffer = new char[len];
     vsnprintf(buffer, len, fmt, args);
-#ifdef IS_DEBUG
-    printf(buffer);
-    consoleUpdate(NULL);
-#endif
 
     std::string logLine = std::string(buffer);
     delete[] buffer;
     errorLogs.push_back(logLine);
 }
 
-void debug_log(const char* fmt, ...) {
 #ifdef IS_DEBUG
-    va_list args;
-    va_start(args, fmt);
-    vprintf(fmt, args);
-    consoleUpdate(NULL);
+ #define debug_log(...) \
+     {char buf[10]; \
+     std::time_t now = std::time(0); \
+     std::strftime(buf, sizeof(buf), "%T", std::localtime(&now)); \
+     printf("[%s] ", buf); \
+     printf(__VA_ARGS__); \
+     consoleUpdate(NULL);}
+#else
+#define debug_log(...)
 #endif
-}
 
 int seek_files(FILE* f, uint64_t offset, FILE* arc) {
     // Set file pointers to start of file and offset respectively
@@ -367,7 +370,7 @@ int load_mods(FILE* f_arc) {
                         }
                     }
                 } else {
-                    log(CONSOLE_RED "Found file '%s', offset not found.\n" CONSOLE_RESET "   Make sure the file name and/or path is correct.\n", dir->d_name);
+                    log(CONSOLE_RED "Found file '%s/%s', offset not found.\n" CONSOLE_RESET "   Make sure the file name and/or path is correct.\n", mod_dir.c_str(), dir->d_name);
                 }
             }
         }
