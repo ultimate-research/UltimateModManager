@@ -43,6 +43,43 @@ const char* mods_root = "sdmc:/UltimateModManager/mods/";
 const char* backups_root = "sdmc:/UltimateModManager/backups/";
 std::string arc_path = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
 
+enum smashRegions{
+    jp_ja,
+    us_en,
+    us_fr,
+    us_es,
+    eu_en,
+    eu_fr,
+    eu_es,
+    eu_de,
+    eu_nl,
+    eu_it,
+    eu_ru,
+    kr_ko,
+    zh_cn,
+    zh_tw
+};
+
+const std::map<std::string, int> regionMap {
+    {"ja",      jp_ja},
+    {"en-US",   us_en},
+    {"fr",      eu_fr},
+    {"de",      eu_de},
+    {"it",      eu_it},
+    {"es",      eu_es},
+    {"zh-CN",   zh_cn},
+    {"ko",      kr_ko},
+    {"nl",      eu_nl},
+    {"pt",      us_es},
+    {"ru",      eu_ru},
+    {"zh-TW",   zh_tw},
+    {"en-GB",   us_en},
+    {"fr-CA",   us_fr},
+    {"es-419",  us_es},
+    {"zh-Hans", zh_cn},
+    {"zh-Hant", zh_tw},
+};
+
 void log(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -66,6 +103,13 @@ void log(const char* fmt, ...) {
 #else
 #define debug_log(...)
 #endif
+
+int getRegion() {
+    u64 languageCode;
+    //setGetLanguageCode(&languageCode);
+    appletGetDesiredLanguage(&languageCode);
+    return regionMap.find((char*)&languageCode)->second;
+}
 
 int seek_files(FILE* f, uint64_t offset, FILE* arc) {
     // Set file pointers to start of file and offset respectively
@@ -175,7 +219,8 @@ int load_mod(const char* path, long offset, FILE* arc) {
         if(arcReader != nullptr) {
             std::string arcFileName = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
             bool regional;
-            arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional);
+            int regionIndex = getRegion();
+            arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional, regionIndex);
             if(modSize > decompSize) {
               log(CONSOLE_RED "%s can not be larger than expected uncompressed size\n" CONSOLE_RESET, path);
               return -1;
@@ -330,7 +375,8 @@ int load_mods(FILE* f_arc) {
                         std::string arcFileName = (mod_dir.substr(mod_dir.find('/', mod_dir.find('/')+1) + 1) + "/" + dir->d_name);
                         u32 compSize, decompSize;
                         bool regional;
-                        arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional);
+                        int regionIndex = getRegion();
+                        arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional, regionIndex);
                     }
                 }
                 if(offset){
