@@ -8,7 +8,6 @@
 #include "dumper.h"
 #include "mod_installer.h"
 #include "menu.h"
-#include "arcReader.h"
 extern "C" {
 #include "ftp_main.h"
 #include "console.h"
@@ -46,9 +45,6 @@ int main(int argc, char **argv)
         printDumperMenu();
     }
 
-    consoleClear();
-    arcReader(("sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc").c_str());
-
     while(appletMainLoop())
     {
         hidScanInput();
@@ -57,7 +53,6 @@ int main(int argc, char **argv)
 
         if (kDown & KEY_PLUS) break; // break in order to return to hbmenu
 
-        /*
         if (menu == MAIN_MENU)
             mainMenuLoop(kDown);
         else if (menu == MOD_INSTALLER_MENU)
@@ -66,7 +61,6 @@ int main(int argc, char **argv)
             dumperMainLoop(kDown);
         else if (menu == FTP_MENU)
             ftp_main();
-        */
 
         consoleUpdate(NULL);
     }

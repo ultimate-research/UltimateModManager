@@ -9,14 +9,20 @@
 #include <zstd.h>
 #include <experimental/filesystem>
 #include "utils.h"
-#include "offsetFile.h"
+#include "ArcReader.h"
+#include "crc32.h"
 #include <stdarg.h>
+
+#define IS_DEBUG
 
 #define FILENAME_SIZE 0x130
 #define FILE_READ_SIZE 0x20000
 
 #define INSTALL false
 #define UNINSTALL true
+
+ArcReader* arcReader = nullptr;
+std::string arc_path;
 
 bool installing = INSTALL;
 bool deleteMod = false;
@@ -25,7 +31,6 @@ char** mod_dirs = NULL;
 size_t num_mod_dirs = 0;
 bool installation_finish = false;
 s64 mod_folder_index = 0;
-offsetFile* offsetObj = nullptr;
 ZSTD_CCtx* compContext = nullptr;
 std::list<s64> installIDXs;
 std::vector<std::string> errorLogs;
@@ -33,19 +38,30 @@ std::vector<std::string> errorLogs;
 const char* manager_root = "sdmc:/UltimateModManager/";
 const char* mods_root = "sdmc:/UltimateModManager/mods/";
 const char* backups_root = "sdmc:/UltimateModManager/backups/";
-const char* offsetDBPath = "sdmc:/UltimateModManager/Offsets.txt";
 
 void log(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    int len;
-    len = vsnprintf(nullptr, 0, fmt, args) + 1;
+    int len = vsnprintf(nullptr, 0, fmt, args) + 1;
     char* buffer = new char[len];
     vsnprintf(buffer, len, fmt, args);
+#ifdef IS_DEBUG
+    printf(buffer);
+    consoleUpdate(NULL);
+#endif
 
     std::string logLine = std::string(buffer);
     delete[] buffer;
     errorLogs.push_back(logLine);
+}
+
+void debug_log(const char* fmt, ...) {
+#ifdef IS_DEBUG
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    consoleUpdate(NULL);
+#endif
 }
 
 int seek_files(FILE* f, uint64_t offset, FILE* arc) {
@@ -95,20 +111,18 @@ char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns po
     if(compLvl==8) compLvl = 17;  // skip arbitrary amount of levels for speed.
   }
   while ((dataSize > compSize || ZSTD_isError(dataSize)) && compLvl <= ZSTD_maxCLevel());
-  //printf("Compression level: %d\n", compLvl-1);
+
   if(dataSize > compSize || ZSTD_isError(dataSize))
   {
     delete[] outBuff;
     outBuff = nullptr;
   }
-  //else printf("compressed size: %lX\n", dataSize);
-  //FILE* f = fopen("/test","wb");
-  //fwrite(outBuff, 1, compSize, f);
+
   delete[] inBuff;
   return outBuff;
 }
 // Forward declaration for use in minBackup()
-int load_mod(const char* path, uint64_t offset, FILE* arc);
+int load_mod(const char* path, long offset, FILE* arc);
 
 void minBackup(u64 modSize, u64 offset, FILE* arc) {
 
@@ -120,7 +134,7 @@ void minBackup(u64 modSize, u64 offset, FILE* arc) {
             load_mod(backup_path, offset, arc);
         }
         else {
-          //printf(CONSOLE_BLUE "Backup file 0x%lx.backup already exists\n" CONSOLE_RESET, offset);
+          debug_log(CONSOLE_BLUE "Backup file 0x%lx.backup already exists\n" CONSOLE_RESET, offset);
           delete[] backup_path;
           return;
         }
@@ -139,38 +153,33 @@ void minBackup(u64 modSize, u64 offset, FILE* arc) {
     return;
 }
 
-int load_mod(const char* path, uint64_t offset, FILE* arc) {
-    std::array<u64, 3> fileData;
-    u64 compSize = 0;
-    u64 decompSize = 0;
+int load_mod(const char* path, long offset, FILE* arc) {
+    u32 compSize = 0;
+    u32 decompSize = 0;
     char* compBuf = nullptr;
     u64 realCompSize = 0;
     std::string pathStr(path);
     u64 modSize = std::experimental::filesystem::file_size(path);
 
     if(pathStr.substr(pathStr.find_last_of('/'), 3) != "/0x") {
-        if(offsetObj == nullptr && std::filesystem::exists(offsetDBPath)) {
-            printf("Parsing Offsets.txt\n");
+        if(arcReader == nullptr) {
+            printf("Parsing data.arc\n");
             consoleUpdate(NULL);
-            offsetObj = new offsetFile(offsetDBPath);
+            arcReader = new ArcReader(arc_path.c_str());
             printf("Done parsing\n");
             consoleUpdate(NULL);
         }
-        if(offsetObj != nullptr) {
-            //printf("Looking up compression size in Offsets.txt\n");
-            //consoleUpdate(NULL);
-            std::string arcPath = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
-            fileData = offsetObj->getKey(arcPath);
-            compSize = fileData[1];
-            decompSize = fileData[2];
+        if(arcReader != nullptr) {
+            std::string arcFileName = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
+            u32 path_hash = crc32(arcFileName.c_str(), arcFileName.size());
+            bool regional;
+            arcReader->GetFileInformation(path_hash, offset, compSize, decompSize, regional);
             if(modSize > decompSize) {
               log(CONSOLE_RED "%s can not be larger than expected uncompressed size\n" CONSOLE_RESET, path);
               return -1;
             }
             if(compSize != decompSize && !ZSTDFileIsFrame(path)) {
                 if(compSize != 0) {
-                    //printf("Compressing...\n");
-                    //consoleUpdate(NULL);
                     compBuf = compressFile(path, compSize, realCompSize);
                     if (compBuf == nullptr)
                     {
@@ -181,7 +190,6 @@ int load_mod(const char* path, uint64_t offset, FILE* arc) {
                 // should never happen, only mods with an Offsets entry get here
                 else log(CONSOLE_RED "comp size not found for %s\n" CONSOLE_RESET, path);
             }
-            //else printf("No compression needed\n");
         }
     }
     if(pathStr.find(backups_root) == std::string::npos) {
@@ -291,8 +299,7 @@ int load_mods(FILE* f_arc) {
     DIR *d;
     struct dirent *dir;
 
-    //printf("Searching mod dir " CONSOLE_YELLOW "%s\n\n" CONSOLE_RESET, mod_dir.c_str());
-    //consoleUpdate(NULL);
+    debug_log("Searching mod dir " CONSOLE_YELLOW "%s\n\n" CONSOLE_RESET, mod_dir.c_str());
 
     std::string abs_mod_dir = std::string(manager_root) + mod_dir;
     d = opendir(abs_mod_dir.c_str());
@@ -306,20 +313,23 @@ int load_mods(FILE* f_arc) {
                 std::string new_mod_dir = mod_dir + "/" + dir->d_name;
                 add_mod_dir(new_mod_dir.c_str());
             } else {
-                uint64_t offset = hex_to_u64(dir->d_name);
+                long offset = hex_to_u64(dir->d_name);
                 if(!offset) {
-                    if(offsetObj == nullptr && std::filesystem::exists(offsetDBPath)) {
-                        printf("Parsing Offsets.txt\n");
+                    if(arcReader == nullptr) {
+                        printf("Parsing data.arc\n");
                         consoleUpdate(NULL);
-                        offsetObj = new offsetFile(offsetDBPath);
+                        fclose(f_arc);
+                        arcReader = new ArcReader(arc_path.c_str());
+                        f_arc = fopen(arc_path.c_str(), "r+b");
                         printf("Done parsing\n");
                         consoleUpdate(NULL);
                     }
-                    if(offsetObj != nullptr) {
-                        //printf("Trying to find offset in Offsets.txt\n");
-                        //consoleUpdate(NULL);
+                    if(arcReader != nullptr) {
                         std::string arcFileName = (mod_dir.substr(mod_dir.find('/', mod_dir.find('/')+1) + 1) + "/" + dir->d_name);
-                        offset = offsetObj->getOffset(arcFileName);
+                        u32 path_hash = crc32(arcFileName.c_str(), arcFileName.size());
+                        u32 compSize, decompSize;
+                        bool regional;
+                        arcReader->GetFileInformation(path_hash, offset, compSize, decompSize, regional);
                     }
                 }
                 if(offset){
@@ -328,16 +338,14 @@ int load_mods(FILE* f_arc) {
                         load_mod(backup_file.c_str(), offset, f_arc);
 
                         remove(backup_file.c_str());
-                        //printf(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, dir->d_name);
-                        //consoleUpdate(NULL);
+                        debug_log(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, dir->d_name);
                     } else {
                         std::string mod_file = std::string(manager_root) + mod_dir + "/" + dir->d_name;
                         if (installing == INSTALL) {
                             appletSetCpuBoostMode(ApmCpuBoostMode_Type1);
                             load_mod(mod_file.c_str(), offset, f_arc);
                             appletSetCpuBoostMode(ApmCpuBoostMode_Disabled);
-                            //printf(CONSOLE_GREEN "%s/%s\n\n" CONSOLE_RESET, mod_dir.c_str(), dir->d_name);
-                            //consoleUpdate(NULL);
+                            debug_log(CONSOLE_GREEN "%s/%s\n\n" CONSOLE_RESET, mod_dir.c_str(), dir->d_name);
                         } else if (installing == UNINSTALL) {
                             char* backup_path = (char*) malloc(FILENAME_SIZE);
                             snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
@@ -345,7 +353,7 @@ int load_mods(FILE* f_arc) {
                             if(std::filesystem::exists(backup_path)) {
                                 load_mod(backup_path, offset, f_arc);
                                 remove(backup_path);
-                                //printf(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, mod_file.c_str());
+                                debug_log(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, mod_file.c_str());
                             }
                             else log(CONSOLE_RED "backup '0x%x' does not exist\n" CONSOLE_RESET, offset);
                             free(backup_path);
@@ -353,14 +361,12 @@ int load_mods(FILE* f_arc) {
                     }
                 } else {
                     log(CONSOLE_RED "Found file '%s', offset not found.\n" CONSOLE_RESET "   Make sure the file name and/or path is correct.\n", dir->d_name);
-                    //consoleUpdate(NULL);
                 }
             }
         }
         closedir(d);
     } else {
         log(CONSOLE_RED "Failed to open mod directory '%s'\n" CONSOLE_RESET, abs_mod_dir.c_str());
-        //consoleUpdate(NULL);
     }
 
     return 0;
@@ -368,7 +374,7 @@ int load_mods(FILE* f_arc) {
 
 void perform_installation() {
     std::string rootModDir = std::string(manager_root) + mod_dirs[num_mod_dirs-1];
-    std::string arc_path = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
+    arc_path = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
     FILE* f_arc;
     if(!std::filesystem::exists(arc_path)) {
       log(CONSOLE_RED "\nNo data.arc found!\n" CONSOLE_RESET
@@ -386,7 +392,6 @@ void perform_installation() {
         printf("\nUninstalling mods...\n\n");
     consoleUpdate(NULL);
     while (num_mod_dirs > 0) {
-        //consoleUpdate(NULL);
         load_mods(f_arc);
     }
 
@@ -532,9 +537,9 @@ void modInstallerMainLoop(int kDown)
           consoleClear();
         }
         else {
-          if(offsetObj != nullptr) {
-              delete offsetObj;
-              offsetObj = nullptr;
+          if(arcReader != nullptr) {
+              delete arcReader;
+              arcReader = nullptr;
           }
           if(compContext != nullptr) {
             ZSTD_freeCCtx(compContext);
