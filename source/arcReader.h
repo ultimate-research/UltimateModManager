@@ -102,13 +102,17 @@ class ArcReader {
             return false;
         }
         reader.seekg(header.FileSystemOffset);
+
+        s32 tableSize;
+        char* table;
+        table = ReadCompressedTable(reader, &tableSize);
         if (header.FileDataOffset < 0x8824AF68) {
             Version = 0x00010000;
-            //ReadFileSystemV1(ReadCompressedTable(reader));
+            if (table) {
+                ReadFileSystemV1(table, tableSize);
+                free(table);
+            }
         } else {
-            s32 tableSize;
-            char* table = ReadCompressedTable(reader, &tableSize);
-
             if (table) {
                 ReadFileSystem(table, tableSize);
                 free(table);
