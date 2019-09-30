@@ -345,33 +345,6 @@ void remove_last_mod_dir() {
     num_mod_dirs--;
 }
 
-#define NUM_PROGRESS_CHARS 50
-
-void print_progress(size_t progress, size_t max, std::string currModFile) {
-    size_t prog_chars;
-    if (max == 0) prog_chars = NUM_PROGRESS_CHARS;
-    else prog_chars = ((float) progress / max) * NUM_PROGRESS_CHARS;
-
-    printf(CONSOLE_ESC(u) CONSOLE_ESC(s));
-    if (prog_chars < NUM_PROGRESS_CHARS) printf(YELLOW);
-    else printf(GREEN);
-
-    printf("[");
-    for (size_t i = 0; i < prog_chars; i++)
-        printf("=");
-
-    if (prog_chars < NUM_PROGRESS_CHARS) printf(">");
-    else printf("=");
-
-    for (size_t i = 0; i < NUM_PROGRESS_CHARS - prog_chars; i++)
-        printf(" ");
-
-    printf("]\t%lu/%lu\n" RESET, progress, max);
-
-    if (currModFile == "") printf(CONSOLE_ESC(K));
-    else printf(YELLOW "%s\n" RESET, currModFile.c_str());
-}
-
 void load_mods(FILE* f_arc) {
     size_t num_mod_files = mod_files.size();
     size_t i = 0;
@@ -437,7 +410,7 @@ void load_mods(FILE* f_arc) {
         i++;
     }
 
-    print_progress(i, num_mod_files, "");
+    print_progress(i, num_mod_files);
     consoleUpdate(NULL);
 
     mod_files.clear();

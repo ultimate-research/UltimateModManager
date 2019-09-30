@@ -3,6 +3,33 @@
 #include <experimental/filesystem>
 #include "menu.h"
 
+#define NUM_PROGRESS_CHARS 50
+
+void print_progress(size_t progress, size_t max, std::string currModFile = "") {
+    size_t prog_chars;
+    if (max == 0) prog_chars = NUM_PROGRESS_CHARS;
+    else prog_chars = ((float) progress / max) * NUM_PROGRESS_CHARS;
+
+    printf(CONSOLE_ESC(u) CONSOLE_ESC(s));
+    if (prog_chars < NUM_PROGRESS_CHARS) printf(YELLOW);
+    else printf(GREEN);
+
+    printf("[");
+    for (size_t i = 0; i < prog_chars; i++)
+        printf("=");
+
+    if (prog_chars < NUM_PROGRESS_CHARS) printf(">");
+    else printf("=");
+
+    for (size_t i = 0; i < NUM_PROGRESS_CHARS - prog_chars; i++)
+        printf(" ");
+
+    printf("]\n" RESET);
+
+    if (currModFile == "") printf(CONSOLE_ESC(K));
+    else printf(YELLOW "%s\n" RESET, currModFile.c_str());
+}
+
 bool isServiceRunning(const char *serviceName) {
   Handle handle;
   bool running = R_FAILED(smRegisterService(&handle, serviceName, false, 1));

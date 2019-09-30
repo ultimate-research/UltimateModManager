@@ -34,13 +34,11 @@ void md5HashFromFile(std::string filename, unsigned char* out)
     u64 size = ftell(inFile);
     fseek(inFile, 0, SEEK_SET);
     u64 sizeRead = 0;
-    int percent = 0;
     while ((bytes = fread (data, 1, bufSize, inFile)) != 0)
     {
       mbedtls_md5_update_ret (&md5Context, data, bytes);
       sizeRead += bytes;
-      percent = sizeRead * 100 / size;
-      printf("\x1b[s\n%d/100\x1b[u", percent);
+      print_progress(sizeRead, size);
       consoleUpdate(NULL);
     }
     mbedtls_md5_finish_ret (&md5Context, out);
@@ -112,7 +110,6 @@ void copy(const char* from, const char* to, bool exfat = false)
 
     char* buf = new char[bufSize];
     u64 sizeWritten = 0;
-    int percent = 0;
     size_t ret;
 
     if(size == 0)
@@ -186,8 +183,7 @@ void copy(const char* from, const char* to, bool exfat = false)
         return;
       }
       sizeWritten += bufSize;
-      percent = sizeWritten * 100 / size;
-      printf("\x1b[s\n%d/100\x1b[u", percent);
+      print_progress(sizeWritten, size);
       //printf("\x1b[20;2Hdest pos: %lld, source pos: %lld", (long long int)dest.tellp(), (long long int)source.tellg());  // Debug log
       //printf("\x1b[22;2H%lu/%lu", sizeWritten, size);  // Debug log
       consoleUpdate(NULL);
