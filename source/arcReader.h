@@ -188,6 +188,43 @@ class ArcReader {
         LOADARRAY(subFiles, _sSubFileInfo, fsHeader.SubFileCount + fsHeader.SubFileCount2 + extraSubCount);
     }
 
+    void ReadFileSystemV1(char* table, s32 tableSize) {
+        membuf sbuf(table, table + tableSize);
+        std::istream iTableReader(&sbuf);
+        ObjectStream reader(iTableReader);
+
+        _sFileSystemHeaderV1 nodeHeader;
+        reader.load(nodeHeader);
+
+        reader.is.seekg(0x68, reader.is.beg);
+
+        // Hash Table
+        reader.is.seekg(0x8 * nodeHeader.Part1Count);
+
+        // Hash Table 2
+        LOADARRAY(streamNameToHash, _sStreamNameToHash, nodeHeader.Part1Count);
+
+        // Hash Table 3
+        LOADARRAY(streamIndexToFile, _sStreamIndexToOffset, nodeHeader.Part2Count);
+
+        // stream offsets
+        LOADARRAY(streamOffsets, _sStreamOffset, nodeHeader.MusicFileCount);
+
+        // Another Hash Table
+        reader.is.seekg(0xC * 0xE);
+
+        //folders
+        LOADARRAY(directoryList, _sDirectoryList, nodeHeader.FolderCount);
+
+        //file offsets
+
+        LOADARRAY(directoryOffsets, _sDirectoryOffset, nodeHeader.FileCount1 + nodeHeader.FileCount2);
+        //DirectoryOffsets_2 = reader.ReadType<_sDirectoryOffsets>(R, NodeHeader.FileCount2);
+        LOADARRAY(directoryChildHashGroup, _sHashIndexGroup, nodeHeader.HashFolderCount);
+        LOADARRAY(fileInfoV1, _sFileInformationV1, nodeHeader.FileInformationCount);
+        LOADARRAY(subFiles, _sSubFileInfo, nodeHeader.SubFileCount + nodeHeader.SubFileCount2);
+    }
+
     char* ReadCompressedTable(std::fstream& reader, s32* tableSize) {
         _sCompressedTableHeader compHeader;
         reader.read((char*)&compHeader, sizeof(compHeader));
@@ -356,27 +393,27 @@ class ArcReader {
     }
 
     void GetFileInformation(_sFileInformationV1 fileInfo, long& offset, u32& compSize, u32& decompSize, int regionIndex) {
-        // var subFile = subFiles[fileInfo.SubFile_Index];
-        // var dirIndex = directoryList[fileInfo.DirectoryIndex >> 8].FullPathHashLengthAndIndex >> 8;
-        // var directoryOffset = directoryOffsets[dirIndex];
+        auto subFile = subFiles[fileInfo.SubFile_Index];
+        auto dirIndex = directoryList[fileInfo.DirectoryIndex >> 8].FullPathHashLengthAndIndex >> 8;
+        auto directoryOffset = directoryOffsets[dirIndex];
 
-        // //redirect
-        // if ((fileInfo.Flags & 0x00300000) == 0x00300000)
-        // {
-        //     GetFileInformation(fileInfoV1[subFile.Flags&0xFFFFFF], out offset, out compSize, out decompSize, regionIndex);
-        //     return;
-        // }
+        //redirect
+        if ((fileInfo.Flags & 0x00300000) == 0x00300000)
+        {
+            GetFileInformation(fileInfoV1[subFile.Flags&0xFFFFFF], offset, compSize, decompSize, regionIndex);
+            return;
+        }
 
-        // //regional
-        // if (IsRegional(fileInfo))
-        // {
-        //     subFile = subFiles[(fileInfo.FileTableFlag >> 8) + regionIndex];
-        //     directoryOffset = directoryOffsets[dirIndex + 1 + regionIndex];
-        // }
+        //regional
+        if ((fileInfo.FileTableFlag >> 8) > 0)
+        {
+            subFile = subFiles[(fileInfo.FileTableFlag >> 8) + regionIndex];
+            directoryOffset = directoryOffsets[dirIndex + 1 + regionIndex];
+        }
 
-        // offset = (header.FileDataOffset + directoryOffset.Offset + (subFile.Offset << 2));
-        // compSize = subFile.CompSize;
-        // decompSize = subFile.DecompSize;
+        offset = (header.FileDataOffset + directoryOffset.Offset + (subFile.Offset << 2));
+        compSize = subFile.CompSize;
+        decompSize = subFile.DecompSize;
     }
 
     bool IsRedirected(u32 path_hash) {
@@ -402,11 +439,11 @@ class ArcReader {
         }
 
         if (Version == 0x00010000) {
-            // for (int i = 0; i < FilePaths.Count; i++)
-            // {
-            //     if (!pathToFileInfoV1.ContainsKey(FilePaths[i]))
-            //         pathToFileInfoV1.Add(FilePaths[i], fileInfoV1[i]);
-            // }
+            for (size_t i = 0; i < FilePaths.size(); i++)
+            {
+                if (!pathToFileInfoV1.count(FilePaths[i]) == 0)
+                    pathToFileInfoV1.try_emplace(FilePaths[i], fileInfoV1[i]);
+            }
         } else {
             for (size_t i = 0; i < FilePaths.size(); i++) {
                 if (pathToFileInfo.count(FilePaths[i]) == 0)
@@ -416,10 +453,21 @@ class ArcReader {
     }
 
     std::vector<u32> GetFileList() {
-        //if (Version == 0x00010000)
-        //    return GetFileListV1();
-        //else
-        return GetFileListV2();
+        if (Version == 0x00010000)
+           return GetFileListV1();
+        else
+            return GetFileListV2();
+    }
+
+    std::vector<u32> GetFileListV1() {
+        std::vector<u32> filePaths;
+
+        for (size_t i = 0; i < numFiles; i++) {
+            auto fileInfo = fileInfoV1[i];
+            filePaths.push_back(fileInfo.Path);
+        }
+
+        return filePaths;
     }
 
     std::vector<u32> GetFileListV2() {
