@@ -34,11 +34,13 @@ void md5HashFromFile(std::string filename, unsigned char* out)
     u64 size = ftell(inFile);
     fseek(inFile, 0, SEEK_SET);
     u64 sizeRead = 0;
+    int percent = 0;
     while ((bytes = fread (data, 1, bufSize, inFile)) != 0)
     {
       mbedtls_md5_update_ret (&md5Context, data, bytes);
       sizeRead += bytes;
-      print_progress(sizeRead, size);
+      percent = sizeRead * 100 / size;
+      print_progress(percent, 100);
       consoleUpdate(NULL);
     }
     mbedtls_md5_finish_ret (&md5Context, out);
@@ -111,7 +113,7 @@ void copy(const char* from, const char* to, bool exfat = false)
     char* buf = new char[bufSize];
     u64 sizeWritten = 0;
     size_t ret;
-
+    int percent = 0;
     if(size == 0)
       printf(CONSOLE_RED "\nThere might be a problem with the data.arc file on your SD card. Please remove the file manually." CONSOLE_RESET);
     while(sizeWritten < size)
@@ -122,54 +124,6 @@ void copy(const char* from, const char* to, bool exfat = false)
         bufSize = size-sizeWritten;
         buf = new char[bufSize];
       }
-
-
-      /* Broken automatic fat32 detection
-      if(!FSChecked && sizeWritten > fat32Max)
-      {
-        // Write one over the limit
-        // delete[] buf;
-        // u64 tempBufSize = (fat32Max - sizeWritten) + 1;
-        // buf = new char[tempBufSize];
-        // source.read(buf, tempBufSize);
-        // dest.write(buf, tempBufSize);
-        // delete[] buf;
-        // buf = new char[bufSize];
-
-        if(dest.bad())  // assuming this is caused by fat32 size limit
-        {
-          dest.close();
-          printf("\x1b[30;2HFat32 detected, making split file");
-          std::filesystem::resize_file(to, splitSize);
-          std::rename(to, (std::string(to) + "temp").c_str());
-          mkdir(to, 0744);
-          std::rename((std::string(to) + "temp").c_str(), (std::string(to) + "/00").c_str());
-
-          //fsdevCreateFile((std::string(to) + "/01").c_str(), 0, 0);
-
-          fsdevSetArchiveBit(to);
-
-          // re-write chopped off peice next time
-          source.seekg(splitSize);
-          if(source.fail())
-            printf("\nsource failed after seeking");
-
-          // hopefully that was the only problem with the stream
-          dest.clear();
-          dest.open(to);
-          dest.seekp(splitSize);
-          //printf("\nsplit Pos:%lld\nsplitSize:%ld", (long long int)dest.tellp(), splitSize);
-          if(dest.fail())
-            printf("\ncould not reopen destination file");
-
-          sizeWritten = splitSize;
-
-          source.seekg(splitSize);
-          printf("\nafter split: dest pos: %lld, source pos: %lld", (long long int)dest.tellp(), (long long int)source.tellg());
-        }
-        FSChecked = true;
-      }
-      */
       fread(buf, sizeof(char), bufSize, source);
       ret = fwrite(buf, sizeof(char), bufSize, dest);
       if(ret != bufSize)
@@ -183,7 +137,8 @@ void copy(const char* from, const char* to, bool exfat = false)
         return;
       }
       sizeWritten += bufSize;
-      print_progress(sizeWritten, size);
+      percent = sizeWritten * 100 / size;
+      print_progress(percent, 100);
       //printf("\x1b[20;2Hdest pos: %lld, source pos: %lld", (long long int)dest.tellp(), (long long int)source.tellg());  // Debug log
       //printf("\x1b[22;2H%lu/%lu", sizeWritten, size);  // Debug log
       consoleUpdate(NULL);
