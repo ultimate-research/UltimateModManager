@@ -218,10 +218,10 @@ int load_mod(const char* path, long offset, FILE* arc) {
 
     if(pathStr.substr(pathStr.find_last_of('/'), 3) != "/0x") {
         if(arcReader == nullptr) {
-            printf("Parsing data.arc\n");
+            debug_log("Parsing data.arc\n");
             consoleUpdate(NULL);
             arcReader = new ArcReader(arc_path.c_str());
-            printf("Done parsing\n");
+            debug_log("Done parsing\n");
             consoleUpdate(NULL);
         }
         if(arcReader != nullptr) {
@@ -345,33 +345,56 @@ void remove_last_mod_dir() {
     num_mod_dirs--;
 }
 
-void console_set_status_progress(size_t progress, size_t max) {
-    console_set_status("\n" GREEN "Mod Installer" RESET
-        "\t\t\t\t\tMods Installed: \t"
-        YELLOW "%lu" RESET
-        BLUE "/%lu" RESET, 
-        progress, max);
+#define NUM_PROGRESS_CHARS 50
+
+void print_progress(size_t progress, size_t max, std::string currModFile) {
+    size_t prog_chars;
+    if (max == 0) prog_chars = NUM_PROGRESS_CHARS;
+    else prog_chars = ((float) progress / max) * NUM_PROGRESS_CHARS;
+
+    printf(CONSOLE_ESC(u) CONSOLE_ESC(s));
+    if (prog_chars < NUM_PROGRESS_CHARS) printf(YELLOW);
+    else printf(GREEN);
+
+    printf("[");
+    for (size_t i = 0; i < prog_chars; i++)
+        printf("=");
+
+    if (prog_chars < NUM_PROGRESS_CHARS) printf(">");
+    else printf("=");
+
+    for (size_t i = 0; i < NUM_PROGRESS_CHARS - prog_chars; i++)
+        printf(" ");
+
+    printf("]\t%lu/%lu\n" RESET, progress, max);
+
+    if (currModFile == "") printf(CONSOLE_ESC(K));
+    else printf(YELLOW "%s\n" RESET, currModFile.c_str());
 }
 
 void load_mods(FILE* f_arc) {
     size_t num_mod_files = mod_files.size();
     size_t i = 0;
-    console_set_status_progress(i, num_mod_files);
-    consoleUpdate(NULL);
 
     for (ModFile mod_file : mod_files) {
         std::string mod_path = mod_file.mod_path;
-        std::string rel_mod_dir = mod_path.substr(strlen(mods_root));
+        std::string rel_mod_dir;
+        if (mod_path.find("backups") != std::string::npos)
+            rel_mod_dir = mod_path.substr(strlen(backups_root));
+        else
+            rel_mod_dir = mod_path.substr(strlen(mods_root));
+        print_progress(i, num_mod_files, rel_mod_dir);
+        consoleUpdate(NULL);
         std::string arcFileName = rel_mod_dir.substr(rel_mod_dir.find('/')+1);
         long offset = mod_file.offset;
         if(!offset) {
             if(arcReader == nullptr) {
-                printf("Parsing data.arc\n");
+                debug_log("Parsing data.arc\n");
                 consoleUpdate(NULL);
                 fclose(f_arc);
                 arcReader = new ArcReader(arc_path.c_str());
                 f_arc = fopen(arc_path.c_str(), "r+b");
-                printf("Done parsing\n");
+                debug_log("Done parsing\n");
                 consoleUpdate(NULL);
             }
             if(arcReader != nullptr) {
@@ -412,9 +435,10 @@ void load_mods(FILE* f_arc) {
         }
 
         i++;
-        console_set_status_progress(i, num_mod_files);
-        consoleUpdate(NULL);
     }
+
+    print_progress(i, num_mod_files, "");
+    consoleUpdate(NULL);
 
     mod_files.clear();
 }
