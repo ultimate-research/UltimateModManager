@@ -76,7 +76,7 @@ const std::map<std::string, int> regionMap {
     {"zh-CN",   zh_cn},
     {"ko",      kr_ko},
     {"nl",      eu_nl},
-    {"pt",      us_es},
+    {"pt",      eu_en},
     {"ru",      eu_ru},
     {"zh-TW",   zh_tw},
     {"en-GB",   eu_en},
