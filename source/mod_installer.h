@@ -7,7 +7,6 @@
 #include <list>
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
-#include <experimental/filesystem>
 #include "utils.h"
 #include "ArcReader.h"
 #include "crc32.h"
@@ -185,7 +184,7 @@ void minBackup(u64 modSize, u64 offset, FILE* arc) {
     snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
 
     if (fileExists(std::string(backup_path))) {
-        if(modSize > std::experimental::filesystem::file_size(backup_path)) {
+        if(modSize > std::filesystem::file_size(backup_path)) {
             load_mod(backup_path, offset, arc);
         }
         else {
@@ -214,7 +213,7 @@ int load_mod(const char* path, long offset, FILE* arc) {
     char* compBuf = nullptr;
     u64 realCompSize = 0;
     std::string pathStr(path);
-    u64 modSize = std::experimental::filesystem::file_size(path);
+    u64 modSize = std::filesystem::file_size(path);
 
     if(pathStr.substr(pathStr.find_last_of('/'), 3) != "/0x") {
         if(arcReader == nullptr) {
