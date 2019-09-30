@@ -79,7 +79,7 @@ const std::map<std::string, int> regionMap {
     {"pt",      us_es},
     {"ru",      eu_ru},
     {"zh-TW",   zh_tw},
-    {"en-GB",   us_en},
+    {"en-GB",   eu_en},
     {"fr-CA",   us_fr},
     {"es-419",  us_es},
     {"zh-Hans", zh_cn},
@@ -403,7 +403,7 @@ void load_mods(FILE* f_arc) {
                 arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional);
             }
         }
-        
+
         if (!offset) {
             log(CONSOLE_RED "Found file '%s/%s', offset not found.\n" CONSOLE_RESET "   Make sure the file name and/or path is correct.\n", rel_mod_dir, arcFileName.c_str());
             continue;
