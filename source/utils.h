@@ -5,7 +5,7 @@
 
 #define NUM_PROGRESS_CHARS 50
 
-void print_progress(size_t progress, size_t max, std::string currModFile = "") {
+void print_progress(size_t progress, size_t max) {
     size_t prog_chars;
     if (max == 0) prog_chars = NUM_PROGRESS_CHARS;
     else prog_chars = ((float) progress / max) * NUM_PROGRESS_CHARS;
@@ -25,10 +25,7 @@ void print_progress(size_t progress, size_t max, std::string currModFile = "") {
     for (size_t i = 0; i < NUM_PROGRESS_CHARS - prog_chars; i++)
         printf(" ");
 
-    printf("]\n" RESET);
-
-    if (currModFile == "") printf(CONSOLE_ESC(K) "\n" CONSOLE_ESC(K));
-    else printf(YELLOW "%s\n" RESET CONSOLE_ESC(K), currModFile.c_str());
+    printf("]\t%lu/%lu\n" RESET, progress, max);
 }
 
 bool isServiceRunning(const char *serviceName) {

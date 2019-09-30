@@ -349,6 +349,8 @@ void load_mods(FILE* f_arc) {
     size_t num_mod_files = mod_files.size();
     size_t i = 0;
 
+    printf(CONSOLE_ESC(s));
+
     for (ModFile mod_file : mod_files) {
         std::string mod_path = mod_file.mod_path;
         std::string rel_mod_dir;
@@ -357,7 +359,7 @@ void load_mods(FILE* f_arc) {
         else
             rel_mod_dir = mod_path.substr(strlen(mods_root));
         std::string arcFileName = rel_mod_dir.substr(rel_mod_dir.find('/')+1);
-        print_progress(i, num_mod_files, arcFileName);
+        print_progress(i, num_mod_files);
         consoleUpdate(NULL);
         long offset = mod_file.offset;
         if(!offset) {
