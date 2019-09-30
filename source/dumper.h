@@ -200,7 +200,7 @@ void dumperMainLoop(int kDown) {
     {
         if(std::filesystem::exists(outPath))
         {
-          printf("\nBeginning hash generation...");
+          printf("\nBeginning hash generation...\n");
           consoleUpdate(NULL);
           unsigned char out[MD5_DIGEST_LENGTH];
           u64 startTime = std::time(0);
@@ -223,13 +223,13 @@ void dumperMainLoop(int kDown) {
     if (kDown & KEY_Y && !dump_done) exfat = true;
     if ((kDown & KEY_A || kDown & KEY_Y) && !dump_done)
     {
-        printf("\nBeginning the dumping process...");
+        printf("\nBeginning the dumping process...\n");
         consoleUpdate(NULL);
         u64 startTime = std::time(0);
-        appletBeginBlockingHomeButton(0);
+        //appletBeginBlockingHomeButton(0);
         appletSetMediaPlaybackState(true);
         copy("romfs:/data.arc", outPath.c_str(), exfat);
-        appletEndBlockingHomeButton();
+        //appletEndBlockingHomeButton();
         appletSetMediaPlaybackState(false);
         u64 endTime = std::time(0);
 
