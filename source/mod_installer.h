@@ -356,9 +356,9 @@ void load_mods(FILE* f_arc) {
             rel_mod_dir = mod_path.substr(strlen(backups_root));
         else
             rel_mod_dir = mod_path.substr(strlen(mods_root));
-        print_progress(i, num_mod_files, rel_mod_dir);
-        consoleUpdate(NULL);
         std::string arcFileName = rel_mod_dir.substr(rel_mod_dir.find('/')+1);
+        print_progress(i, num_mod_files, arcFileName);
+        consoleUpdate(NULL);
         long offset = mod_file.offset;
         if(!offset) {
             if(arcReader == nullptr) {
@@ -378,7 +378,8 @@ void load_mods(FILE* f_arc) {
         }
 
         if (!offset) {
-            log(CONSOLE_RED "Found file '%s/%s', offset not found.\n" CONSOLE_RESET "   Make sure the file name and/or path is correct.\n", rel_mod_dir, arcFileName.c_str());
+            log(CONSOLE_RED "Found file '%s', offset not found.\n" CONSOLE_RESET "   Make sure the file name and/or path is correct.\n", arcFileName.c_str());
+            i++;
             continue;
         }
 

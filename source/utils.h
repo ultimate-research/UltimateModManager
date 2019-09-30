@@ -10,6 +10,7 @@ void print_progress(size_t progress, size_t max, std::string currModFile = "") {
     if (max == 0) prog_chars = NUM_PROGRESS_CHARS;
     else prog_chars = ((float) progress / max) * NUM_PROGRESS_CHARS;
 
+    printf(CONSOLE_ESC(u));
     printf(CONSOLE_ESC(s));
     if (prog_chars < NUM_PROGRESS_CHARS) printf(YELLOW);
     else printf(GREEN);
@@ -26,9 +27,8 @@ void print_progress(size_t progress, size_t max, std::string currModFile = "") {
 
     printf("]\n" RESET);
 
-    if (currModFile == "") printf(CONSOLE_ESC(K));
-    else printf(YELLOW "%s\n" RESET, currModFile.c_str());
-    printf(CONSOLE_ESC(u));
+    if (currModFile == "") printf(CONSOLE_ESC(K) "\n" CONSOLE_ESC(K));
+    else printf(YELLOW "%s\n" RESET CONSOLE_ESC(K), currModFile.c_str());
 }
 
 bool isServiceRunning(const char *serviceName) {

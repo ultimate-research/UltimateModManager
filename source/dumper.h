@@ -226,10 +226,10 @@ void dumperMainLoop(int kDown) {
         printf("\nBeginning the dumping process...\n");
         consoleUpdate(NULL);
         u64 startTime = std::time(0);
-        //appletBeginBlockingHomeButton(0);
+        appletBeginBlockingHomeButton(0);
         appletSetMediaPlaybackState(true);
         copy("romfs:/data.arc", outPath.c_str(), exfat);
-        //appletEndBlockingHomeButton();
+        appletEndBlockingHomeButton();
         appletSetMediaPlaybackState(false);
         u64 endTime = std::time(0);
 
