@@ -378,7 +378,7 @@ void load_mods(FILE* f_arc) {
         }
 
         if (!offset) {
-            log(CONSOLE_RED "Found file '%s/%s', offset not found.\n" CONSOLE_RESET "   Make sure the file name and/or path is correct.\n", rel_mod_dir.c_str(), arcFileName.c_str());
+            log(CONSOLE_RED "Found file '%s', offset not found.\n" CONSOLE_RESET "   Make sure the file name and/or path is correct.\n", arcFileName.c_str());
             continue;
         }
 
