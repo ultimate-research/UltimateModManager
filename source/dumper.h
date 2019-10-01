@@ -164,7 +164,7 @@ void dumperMainLoop(int kDown) {
           md5HashFromFile(outPath, out);
           appletSetMediaPlaybackState(false);
           u64 endTime = std::time(0);
-          printf("\nmd5:");
+          printf("\nMD5:");
           for(int i = 0; i < MD5_DIGEST_LENGTH; i++) printf("%02x", out[i]);
           printf("\nHashing took %.2f minutes", (float)(endTime - startTime)/60);
           consoleUpdate(NULL);
@@ -190,8 +190,8 @@ void dumperMainLoop(int kDown) {
 
         dump_done = true;  // So you don't accidentally dump twice
         printf("\nCompleted in %.2f minutes.", (float)(endTime - startTime)/60);
-        printf("\nOptional: Press 'X' generate an MD5 hash of the file");
-        printf("\nPress B to return to the main menu.\n");
+        printf("\nOptional: Press 'X' to generate an MD5 hash of the file");
+        printf("\nPress 'B' to return to the main menu\n");
         consoleUpdate(NULL);
         shortVibratePattern();
     }

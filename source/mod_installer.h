@@ -241,7 +241,7 @@ int load_mod(const char* path, long offset, FILE* arc) {
                     }
                 }
                 // should never happen, only mods with an Offsets entry get here
-                else log(CONSOLE_RED "comp size not found for %s\n" CONSOLE_RESET, path);
+                else log(CONSOLE_RED "Compressed size not found for %s\n" CONSOLE_RESET, path);
             }
         }
     }
@@ -601,10 +601,10 @@ void modInstallerMainLoop(int kDown)
 
             closedir(d);
             console_set_status("\n" GREEN "Mod Installer" RESET);
-            printf(CONSOLE_ESC(s) CONSOLE_ESC(46;1H) GREEN "A" RESET "=install "
-                   GREEN "Y" RESET "=uninstall " GREEN "L+R+Y" RESET "=delete "
-                   GREEN "R-Stick" RESET "=scroll " GREEN "ZR" RESET "=multi-select "
-                   GREEN "B" RESET "=main menu" CONSOLE_ESC(u));
+            printf(CONSOLE_ESC(s) CONSOLE_ESC(46;1H) GREEN "A" RESET "=Install "
+                   GREEN "Y" RESET "=Uninstall " GREEN "L+R+Y" RESET "=Delete "
+                   GREEN "R-Stick" RESET "=Scroll " GREEN "ZR" RESET "=Multi-select "
+                   GREEN "B" RESET "=Main Menu" CONSOLE_ESC(u));
         } else {
             log(CONSOLE_RED "%s folder not found\n\n" CONSOLE_RESET, mods_root);
         }
