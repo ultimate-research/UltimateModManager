@@ -1,8 +1,53 @@
 #pragma once
 #include <filesystem>
+#include <map>
 #include "menu.h"
 
 #define NUM_PROGRESS_CHARS 50
+const char* manager_root = "sdmc:/UltimateModManager/";
+const char* tablePath = "sdmc:/UltimateModManager/compTable.backup";
+enum smashRegions{
+    jp_ja,
+    us_en,
+    us_fr,
+    us_es,
+    eu_en,
+    eu_fr,
+    eu_es,
+    eu_de,
+    eu_nl,
+    eu_it,
+    eu_ru,
+    kr_ko,
+    zh_cn,
+    zh_tw
+};
+const std::map<std::string, int> regionMap {
+    {"ja",      jp_ja},
+    {"en-US",   us_en},
+    {"fr",      eu_fr},
+    {"de",      eu_de},
+    {"it",      eu_it},
+    {"es",      eu_es},
+    {"zh-CN",   zh_cn},
+    {"ko",      kr_ko},
+    {"nl",      eu_nl},
+    {"pt",      eu_en},
+    {"ru",      eu_ru},
+    {"zh-TW",   zh_tw},
+    {"en-GB",   eu_en},
+    {"fr-CA",   us_fr},
+    {"es-419",  us_es},
+    {"zh-Hans", zh_cn},
+    {"zh-Hant", zh_tw},
+};
+
+int getRegion() {
+    u64 languageCode;
+    //setGetLanguageCode(&languageCode);
+    appletGetDesiredLanguage(&languageCode);
+    return regionMap.find((char*)&languageCode)->second;
+}
 
 void print_progress(size_t progress, size_t max) {
     size_t prog_chars;

@@ -6,6 +6,7 @@
 #include <vector>
 #include "arcStructs.h"
 #include "crc32.h"
+#include "utils.h"
 
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
@@ -77,7 +78,13 @@ class ArcReader {
     // V1 arc only
     _sFileInformationV1* fileInfoV1;
 
-    bool zstd_decompress(void* comp, void* decomp, uint32_t comp_size, uint32_t decomp_size) {
+    // extra saved data
+    u64 subFilesOffset = 0;
+    u32 subFilesCount = 0;
+    _sCompressedTableHeader compHeader;
+    char* table;
+
+    bool zstd_decompress(void* comp, void* decomp, u32 comp_size, u32 decomp_size) {
         ZSTD_resetDStream(dstream);
 
         ZSTD_inBuffer input = {comp, comp_size, 0};
@@ -92,6 +99,39 @@ class ArcReader {
         return true;
     }
 
+    size_t zstd_compress(void* comp, size_t comp_size, void* decomp, size_t decomp_size, int cLevel) {
+        /*ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, cLevel);
+
+        ZSTD_outBuffer output = {comp, comp_size, 0};
+        ZSTD_inBuffer input = {decomp, decomp_size, 0};
+
+        size_t ret = ZSTD_compressStream(cctx, &output, &input);
+        if (ZSTD_isError(ret)) {
+            printf("err %s\n", ZSTD_getErrorName(ret));
+            return 0;
+        }
+        size_t ret2 = ZSTD_endStream(cctx, &output);
+        if (ZSTD_isError(ret2)) {
+            printf("err %s\n", ZSTD_getErrorName(ret2));
+            return 0;
+        }
+        ZSTD_freeCCtx(cctx);
+        return output.pos;*/
+
+        ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        ZSTD_parameters params;
+        params.fParams = {0,0,1};
+        params.cParams = ZSTD_getCParams(cLevel, decomp_size, 0);
+        size_t dataSize = ZSTD_compress_advanced(cctx, comp, comp_size, decomp, decomp_size, nullptr, 0, params);
+        if(ZSTD_isError(dataSize)) {
+            printf("\n\n\n\n\nzstd fail: %s\n", ZSTD_getErrorName(dataSize));
+            return 0;
+        }
+        ZSTD_freeCCtx(cctx);
+        return dataSize;
+    }
+
     bool Init() {
         dstream = ZSTD_createDStream();
         ZSTD_initDStream(dstream);
@@ -104,18 +144,18 @@ class ArcReader {
         reader.seekg(header.FileSystemOffset);
 
         s32 tableSize;
-        char* table;
+        //char* table;
         table = ReadCompressedTable(reader, &tableSize);
         if (header.FileDataOffset < 0x8824AF68) {
             Version = 0x00010000;
             if (table) {
                 ReadFileSystemV1(table, tableSize);
-                free(table);
+                //free(table);
             }
         } else {
             if (table) {
                 ReadFileSystem(table, tableSize);
-                free(table);
+                //free(table);
             }
         }
         reader.close();
@@ -189,6 +229,8 @@ class ArcReader {
         numFiles = fsHeader.FileInformationCount + fsHeader.SubFileCount2 + extraCount;
         LOADARRAY(fileInfoV2, _sFileInformationV2, numFiles);
         LOADARRAY(fileInfoSubIndex, _sFileInformationSubIndex, fsHeader.FileInformationSubIndexCount + fsHeader.SubFileCount2 + extraCount2);
+        subFilesOffset = reader.pos;
+        subFilesCount = fsHeader.SubFileCount + fsHeader.SubFileCount2 + extraSubCount;
         LOADARRAY(subFiles, _sSubFileInfo, fsHeader.SubFileCount + fsHeader.SubFileCount2 + extraSubCount);
     }
 
@@ -230,7 +272,7 @@ class ArcReader {
     }
 
     char* ReadCompressedTable(std::fstream& reader, s32* tableSize) {
-        _sCompressedTableHeader compHeader;
+        //_sCompressedTableHeader compHeader;
         reader.read((char*)&compHeader, sizeof(compHeader));
 
         char* tableBytes;
@@ -247,7 +289,7 @@ class ArcReader {
         } else if (compHeader.DataOffset == 0x10) {
             char* compressedTableBytes = (char*)malloc(compHeader.CompressedSize);
             reader.read(compressedTableBytes, compHeader.CompressedSize);
-
+            backupTable((char*)&compHeader, sizeof(compHeader), compressedTableBytes, compHeader.CompressedSize);
             size = compHeader.DecompressedSize;
             tableBytes = (char*)malloc(size);
             zstd_decompress(compressedTableBytes, tableBytes, compHeader.CompressedSize, compHeader.DecompressedSize);
@@ -290,9 +332,92 @@ class ArcReader {
         free(fileInfoV2);
         free(fileInfoSubIndex);
         free(subFiles);
+
+        // extra
+        free(table);
+    }
+
+    void writeTableData (void* data, u64 totalSize, u64 offset, FILE * writer) {
+        errno = 0;
+        char* charData = (char*)data;
+        for(u64 i = 0; i < totalSize; i++) table[offset+i] = charData[i];
+        if (compHeader.DataOffset > 0x10) printf("\nOOF\n");  // todo
+        else if (compHeader.DataOffset == 0x10) {
+            size_t origTableSize;
+            if(std::filesystem::exists(tablePath))
+                origTableSize = std::filesystem::file_size(tablePath);
+            else
+                origTableSize = compHeader.CompressedSize;
+            char* compTable = (char*)malloc(origTableSize);
+            size_t compTableSize = zstd_compress(compTable, origTableSize, table, compHeader.DecompressedSize, 22);
+            if(compTableSize == 0) {
+                printf("compFail\n");
+                return;
+            }
+            compHeader.CompressedSize = compTableSize;
+            if(fseek(writer, header.FileSystemOffset, SEEK_SET) != 0) printf("seek: %s\n", strerror(errno));
+            size_t ret = fwrite((char*)&compHeader, sizeof(char), sizeof(_sCompressedTableHeader), writer);
+            if(ret != sizeof(_sCompressedTableHeader)) {
+                printf("write header: %s\n", strerror(errno));
+                return;
+            }
+            ret = fwrite(compTable, sizeof(char), compTableSize, writer);
+            if(ret != compTableSize) printf("write: %s\n", strerror(errno));
+            fclose(writer);
+            free(compTable);
+        }
+        else printf("\nOOF2\n");  // todo
+    }
+    void backupTable(char* header, size_t headerSize, char* table, size_t tableSize) {
+        if(!std::filesystem::exists(tablePath)) {
+            FILE* writer = fopen(tablePath, "wb");
+            fwrite(header, sizeof(char), headerSize, writer);
+            fwrite(table, sizeof(char), tableSize, writer);
+            fclose(writer);
+        }
     }
 
    public:
+    void writeFileInfo(FILE * arc) {
+        writeTableData(subFiles, sizeof(_sSubFileInfo) * subFilesCount, subFilesOffset, arc);
+    }
+    bool restoreTable() {
+        if(std::filesystem::exists(tablePath)) {
+            FILE* reader = fopen(tablePath, "rb");
+            size_t fileSize = std::filesystem::file_size(tablePath);
+            char* tableBuf = new char[fileSize];
+            fread(tableBuf, sizeof(char), fileSize, reader);
+            fclose(reader);
+            FILE* writer = fopen(this->arcPath.c_str(), "r+b");
+            fseek(writer, header.FileSystemOffset, SEEK_SET);
+            fwrite(tableBuf, sizeof(char), fileSize, writer);
+            fclose(writer);
+            Deinit();
+            Init();
+            return true;
+        }
+        return false;
+    }
+    int updateFileInfo(std::string path, u32 Offset = 0, u32 CompSize = 0, u32 DecompSize = 0, u32 Flags = 0) {
+        u32 path_hash = crc32(path.c_str(), path.size());
+        if ((Version != 0x00010000 && pathToFileInfo.count(path_hash) == 0) ||
+            (Version == 0x00010000 && pathToFileInfoV1.count(path_hash) == 0))
+            return -1;
+        if (Version == 0x00010000)
+            return -1;
+        _sFileInformationV2 fileinfo = pathToFileInfo[path_hash];
+        auto subIndex = fileInfoSubIndex[fileinfo.SubIndexIndex];
+        //regional
+        if ((fileinfo.Flags & 0x00008000) == 0x8000) {
+            int regionIndex = getRegion();
+            subIndex = fileInfoSubIndex[fileinfo.SubIndexIndex + 1 + regionIndex];
+        }
+        if(Offset != 0) subFiles[subIndex.SubFileIndex].Offset = Offset;
+        if(CompSize != 0) subFiles[subIndex.SubFileIndex].CompSize = CompSize;
+        if(DecompSize != 0) subFiles[subIndex.SubFileIndex].DecompSize = DecompSize;
+        if(Flags != 0) subFiles[subIndex.SubFileIndex].Flags = Flags;
+        return 0;
+    }
     static const size_t NUM_REGIONS = 14;
     std::string RegionTags[NUM_REGIONS] =
     {

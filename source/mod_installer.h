@@ -28,6 +28,7 @@ ArcReader* arcReader = nullptr;
 
 bool installing = INSTALL;
 bool deleteMod = false;
+bool pendingTableWrite = false;
 
 char** mod_dirs = NULL;
 size_t num_mod_dirs = 0;
@@ -43,47 +44,9 @@ ZSTD_CCtx* compContext = nullptr;
 std::list<s64> installIDXs;
 std::vector<std::string> errorLogs;
 
-const char* manager_root = "sdmc:/UltimateModManager/";
 const char* mods_root = "sdmc:/UltimateModManager/mods/";
 const char* backups_root = "sdmc:/UltimateModManager/backups/";
 std::string arc_path = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
-
-enum smashRegions{
-    jp_ja,
-    us_en,
-    us_fr,
-    us_es,
-    eu_en,
-    eu_fr,
-    eu_es,
-    eu_de,
-    eu_nl,
-    eu_it,
-    eu_ru,
-    kr_ko,
-    zh_cn,
-    zh_tw
-};
-
-const std::map<std::string, int> regionMap {
-    {"ja",      jp_ja},
-    {"en-US",   us_en},
-    {"fr",      eu_fr},
-    {"de",      eu_de},
-    {"it",      eu_it},
-    {"es",      eu_es},
-    {"zh-CN",   zh_cn},
-    {"ko",      kr_ko},
-    {"nl",      eu_nl},
-    {"pt",      eu_en},
-    {"ru",      eu_ru},
-    {"zh-TW",   zh_tw},
-    {"en-GB",   eu_en},
-    {"fr-CA",   us_fr},
-    {"es-419",  us_es},
-    {"zh-Hans", zh_cn},
-    {"zh-Hant", zh_tw},
-};
 
 void log(const char* fmt, ...) {
     va_list args;
@@ -108,13 +71,6 @@ void log(const char* fmt, ...) {
 #else
 #define debug_log(...)
 #endif
-
-int getRegion() {
-    u64 languageCode;
-    //setGetLanguageCode(&languageCode);
-    appletGetDesiredLanguage(&languageCode);
-    return regionMap.find((char*)&languageCode)->second;
-}
 
 int regionIndex = getRegion();
 
@@ -228,8 +184,8 @@ int load_mod(const char* path, long offset, FILE* arc) {
             bool regional;
             arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional, regionIndex);
             if(modSize > decompSize) {
-              log(CONSOLE_RED "%s can not be larger than expected uncompressed size\n" CONSOLE_RESET, path);
-              return -1;
+              if(arcReader->updateFileInfo(arcFileName, 0, 0, modSize) == -1) printf("\n\n\n\nfailed");
+              pendingTableWrite = true;
             }
             if(compSize != decompSize && !ZSTDFileIsFrame(path)) {
                 if(compSize != 0) {
@@ -484,7 +440,12 @@ void perform_installation() {
     free(mod_dirs);
 
     load_mods(f_arc);
-
+    if(pendingTableWrite) {
+        printf("Writing file table\n");
+        consoleUpdate(NULL);
+        arcReader->writeFileInfo(f_arc);
+        pendingTableWrite = false;
+    }
     fclose(f_arc);
     if (deleteMod) {
       printf("Deleting mod files\n");
@@ -590,6 +551,9 @@ void modInstallerMainLoop(int kDown)
                 if (start_install) {
                     found_dir = true;
                     add_mod_dir("backups");
+                    if(arcReader == nullptr)
+                        arcReader = new ArcReader(arc_path.c_str());
+                    arcReader->restoreTable();
                 }
             }
 
