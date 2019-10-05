@@ -377,6 +377,22 @@ class ArcReader {
         }
     }
 
+    void checkRegionalSuffix(std::string& path, int& regionIndex) {
+        size_t semicolonIndex;
+        if ((semicolonIndex = path.find(";")) != std::string::npos)
+            path[semicolonIndex] = ':';
+
+        for (size_t i = 0; i < NUM_REGIONS; i++) {
+            std::string regionTag = RegionTags[i];
+            size_t pos;
+            if ((pos = path.find(regionTag)) != std::string::npos) {
+                path.erase(pos, regionTag.size());
+                regionIndex = i;
+                break;
+            }
+        }
+    }
+
    public:
     void writeFileInfo(FILE * arc) {
         writeTableData(subFiles, sizeof(_sSubFileInfo) * subFilesCount, subFilesOffset, arc);
@@ -399,6 +415,9 @@ class ArcReader {
         return false;
     }
     int updateFileInfo(std::string path, u32 Offset = 0, u32 CompSize = 0, u32 DecompSize = 0, u32 Flags = 0) {
+        int regionIndex = getRegion();
+        checkRegionalSuffix(path, regionIndex);
+
         u32 path_hash = crc32(path.c_str(), path.size());
         if ((Version != 0x00010000 && pathToFileInfo.count(path_hash) == 0) ||
             (Version == 0x00010000 && pathToFileInfoV1.count(path_hash) == 0))
@@ -409,7 +428,6 @@ class ArcReader {
         auto subIndex = fileInfoSubIndex[fileinfo.SubIndexIndex];
         //regional
         if ((fileinfo.Flags & 0x00008000) == 0x8000) {
-            int regionIndex = getRegion();
             subIndex = fileInfoSubIndex[fileinfo.SubIndexIndex + 1 + regionIndex];
         }
         if(Offset != 0) subFiles[subIndex.SubFileIndex].Offset = Offset;
@@ -438,19 +456,7 @@ class ArcReader {
     };
 
     void GetFileInformation(std::string arcFileName, long& offset, u32& compSize, u32& decompSize, bool& regional, int regionIndex = 1) {
-        size_t semicolonIndex;
-        if ((semicolonIndex = arcFileName.find(";")) != std::string::npos)
-            arcFileName[semicolonIndex] = ':';
-
-        for (size_t i = 0; i < NUM_REGIONS; i++) {
-            std::string regionTag = RegionTags[i];
-            size_t pos;
-            if ((pos = arcFileName.find(regionTag)) != std::string::npos) {
-                arcFileName.erase(pos, regionTag.size());
-                regionIndex = i;
-                break;
-            }
-        }
+        checkRegionalSuffix(arcFileName, regionIndex);
 
         u32 path_hash = crc32(arcFileName.c_str(), arcFileName.size());
 
