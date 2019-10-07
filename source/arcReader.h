@@ -5,8 +5,8 @@
 #include <streambuf>
 #include <vector>
 #include "arcStructs.h"
-#include "crc32.h"
 #include "utils.h"
+#include <switch.h>
 
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
@@ -418,7 +418,7 @@ class ArcReader {
         int regionIndex = getRegion();
         checkRegionalSuffix(path, regionIndex);
 
-        u32 path_hash = crc32(path.c_str(), path.size());
+        u32 path_hash = crc32Calculate(path.c_str(), path.size());
         if ((Version != 0x00010000 && pathToFileInfo.count(path_hash) == 0) ||
             (Version == 0x00010000 && pathToFileInfoV1.count(path_hash) == 0))
             return -1;
@@ -458,7 +458,7 @@ class ArcReader {
     void GetFileInformation(std::string arcFileName, long& offset, u32& compSize, u32& decompSize, bool& regional, int regionIndex = 1) {
         checkRegionalSuffix(arcFileName, regionIndex);
 
-        u32 path_hash = crc32(arcFileName.c_str(), arcFileName.size());
+        u32 path_hash = crc32Calculate(arcFileName.c_str(), arcFileName.size());
 
         offset = 0;
         compSize = 0;

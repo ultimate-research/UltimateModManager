@@ -9,7 +9,6 @@
 #include <zstd.h>
 #include "utils.h"
 #include "ArcReader.h"
-#include "crc32.h"
 #include <stdarg.h>
 
 //#define IS_DEBUG
