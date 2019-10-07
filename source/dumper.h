@@ -51,6 +51,7 @@ void md5HashFromFile(std::string filename, unsigned char* out)
 
 void copy(const char* from, const char* to, bool exfat = false)
 {
+    Result rc=0;
     //const u64 fat32Max = 0xFFFFFFFF;
     //const u64 splitSize = 0xFFFF0000;
     const u64 smashTID = 0x01006A800016E000;
@@ -97,13 +98,20 @@ void copy(const char* from, const char* to, bool exfat = false)
     {
       mkdirs(folder, 0744);
     }
-    if(!exfat)
-      fsdevCreateFile(to, 0, FS_CREATE_BIG_FILE);
+    if(!exfat) {
+      rc = fsdevCreateFile(to, 0, FS_CREATE_BIG_FILE);
+      if (R_FAILED(rc)) {
+        printf("\nfsdevCreateFile() failed: 0x%x", rc);
+        fclose(source);
+        romfsUnmount("romfs");
+        return;
+      }
+    }
 
     FILE* dest = fopen(to, "wb");
     if(dest == nullptr)
     {
-      printf(CONSOLE_RED "\nCould not open the destination file." CONSOLE_RESET);
+      printf(CONSOLE_RED "\nCould not open the destination file. error: %s" CONSOLE_RESET, strerror(errno));
       fclose(dest);
       fclose(source);
       romfsUnmount("romfs");
