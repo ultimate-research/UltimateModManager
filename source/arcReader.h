@@ -394,6 +394,7 @@ class ArcReader {
     }
 
    public:
+    int Version;
     void writeFileInfo(FILE * arc) {
         writeTableData(subFiles, sizeof(_sSubFileInfo) * subFilesCount, subFilesOffset, arc);
     }
@@ -617,7 +618,6 @@ class ArcReader {
         return filePaths;
     }
 
-    int Version;
     ArcReader(std::string arcPath) {
         this->arcPath = arcPath;
 

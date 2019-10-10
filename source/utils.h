@@ -4,6 +4,7 @@
 #include "menu.h"
 
 #define NUM_PROGRESS_CHARS 50
+const u64 smashTID = 0x01006A800016E000;
 const char* manager_root = "sdmc:/UltimateModManager/";
 const char* tablePath = "sdmc:/UltimateModManager/compTable.backup";
 enum smashRegions{
@@ -47,6 +48,27 @@ int getRegion() {
     //setGetLanguageCode(&languageCode);
     appletGetDesiredLanguage(&languageCode);
     return regionMap.find((char*)&languageCode)->second;
+}
+
+void getVersion(u64 tid, char version[0x10]) {
+    nsInitialize();
+    NsApplicationControlData contolData;
+    nsGetApplicationControlData(1, tid, &contolData, sizeof(NsApplicationControlData), NULL);
+    nsExit();
+    strcpy(version, contolData.nacp.version);
+}
+
+int getSmashVersion() {
+    int out = 0;
+    char version[0x10];
+    getVersion(smashTID, version);
+    char* value = strtok(version, ".");
+    out += strtol(value, NULL, 16) * 0x10000;
+    value = strtok(NULL, ".");
+    out += strtol(value, NULL, 16) * 0x100;
+    value = strtok(NULL, ".");
+    out += strtol(value, NULL, 16);
+    return out;
 }
 
 void print_progress(size_t progress, size_t max) {

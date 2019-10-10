@@ -39,6 +39,7 @@ std::vector<ModFile> mod_files;
 
 bool installation_finish = false;
 s64 mod_folder_index = 0;
+int smashVersion;
 ZSTD_CCtx* compContext = nullptr;
 std::list<s64> installIDXs;
 std::vector<std::string> errorLogs;
@@ -179,6 +180,10 @@ int load_mod(const char* path, long offset, FILE* arc) {
             consoleUpdate(NULL);
         }
         if(arcReader != nullptr) {
+            if(arcReader->Version != smashVersion) {
+                log(CONSOLE_RED "Your data.arc does not match your game version\n" CONSOLE_RESET);
+                return -1;
+            }
             std::string arcFileName = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
             bool regional;
             arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional, regionIndex);
@@ -603,6 +608,6 @@ void modInstallerMainLoop(int kDown)
         }
     }
     if(kDown & KEY_X) {
-        appletRequestLaunchApplication(0x01006A800016E000, NULL);
+        appletRequestLaunchApplication(smashTID, NULL);
     }
 }

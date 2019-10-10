@@ -47,6 +47,7 @@ int main(int argc, char **argv)
         printDumperMenu();
     }
     appletSetScreenShotPermission(AppletScreenShotPermission_Enable);
+    smashVersion = getSmashVersion();
 
     while(appletMainLoop())
     {
