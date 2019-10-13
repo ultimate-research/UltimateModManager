@@ -132,7 +132,7 @@ char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns po
   return outBuff;
 }
 // Forward declaration for use in minBackup()
-int load_mod(const char* path, long offset, FILE* arc);
+int load_mod(const char* path, u64 offset, FILE* arc);
 
 void minBackup(u64 modSize, u64 offset, FILE* arc) {
 
@@ -163,7 +163,7 @@ void minBackup(u64 modSize, u64 offset, FILE* arc) {
     return;
 }
 
-int load_mod(const char* path, long offset, FILE* arc) {
+int load_mod(const char* path, u64 offset, FILE* arc) {
     u32 compSize = 0;
     u32 decompSize = 0;
     char* compBuf = nullptr;
@@ -186,7 +186,19 @@ int load_mod(const char* path, long offset, FILE* arc) {
             }
             std::string arcFileName = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
             bool regional;
+            //u64 newoff = arcReader->fileDataEnd();
+            u64 oldoffset = 0;
+            arcReader->GetFileInformation(arcFileName, oldoffset, compSize, decompSize, regional, regionIndex);
+            fseek(arc, 0, SEEK_END);
+            u64 arcSize = ftell(arc);
+            //u64 dataEnd = arcReader->fileDataEnd();
+            //if(arcReader->updateFileInfo(arcFileName, arcSize) == -1) printf("\n\n\n\nfailed to update file info\n");
+            if(arcReader->updateFileInfo(arcFileName, arcSize, modSize, modSize) == -1) printf("\n\n\n\nfailed to update file info\n");
+            //if(arcReader->updateFileInfo(arcFileName, 0, 0, modSize) == -1) printf("\n\n\n\nfailed");
+            pendingTableWrite = true;
+            //addSpace(arc, modSize, arcReader->fileDataEnd());
             arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional, regionIndex);
+            //if(offset > arcSize) printf("\n\n\n\noffset mismatch, data overwitten: %s\nintended:%lx\n  actual:%lx\noriginal:%lx", arcFileName.c_str(), arcSize, offset, oldoffset);
             if(modSize > decompSize) {
               if(arcReader->updateFileInfo(arcFileName, 0, 0, modSize) == -1) printf("\n\n\n\nfailed");
               pendingTableWrite = true;
@@ -196,6 +208,14 @@ int load_mod(const char* path, long offset, FILE* arc) {
                     compBuf = compressFile(path, compSize, realCompSize);
                     if (compBuf == nullptr)
                     {
+                        /*printf("\ncompression failed, writing " CONSOLE_YELLOW "%s" CONSOLE_RESET " uncompressed at end of archive\n", path);
+                        u64 oldoffset = offset;
+                        fseek(arc, 0, SEEK_END);
+                        u64 arcSize = ftell(arc);
+                        if(arcReader->updateFileInfo(arcFileName, arcSize, modSize, modSize) == -1) printf("\n\n\n\nfailed to update file info\n");
+                        pendingTableWrite = true;
+                        arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional, regionIndex);
+                        if(offset > arcSize) printf("\n\n\n\noffset mismatch, data overwitten: %s\nintended:%lx\n  actual:%lx\noriginal:%lx", arcFileName.c_str(), arcSize, offset, oldoffset);*/
                         log(CONSOLE_RED "Compression failed on %s\n" CONSOLE_RESET, path);
                         return -1;
                     }
@@ -320,7 +340,7 @@ void load_mods(FILE* f_arc) {
         std::string arcFileName = rel_mod_dir.substr(rel_mod_dir.find('/')+1);
         print_progress(i, num_mod_files);
         consoleUpdate(NULL);
-        long offset = mod_file.offset;
+        u64 offset = mod_file.offset;
         if(!offset) {
             if(arcReader == nullptr) {
                 debug_log("Parsing data.arc\n");

@@ -192,3 +192,14 @@ void removeRecursive(std::filesystem::path path)
 
   std::filesystem::remove(path);
 }
+
+void addSpace(FILE* file, u32 space, u64 offset) {
+    fseek(file, 0, SEEK_END);
+    u64 moveSize = ftell(file) - offset;
+    char* moveData = new char[moveSize];
+    fseek(file, offset, SEEK_SET);
+    fread(moveData, sizeof(char), moveSize, file);
+    fseek(file, offset+space, SEEK_SET);
+    fwrite(moveData, sizeof(char), moveSize, file);
+    delete[] moveData;
+}

@@ -52,9 +52,6 @@ void md5HashFromFile(std::string filename, unsigned char* out)
 void copy(const char* from, const char* to, bool exfat = false)
 {
     Result rc=0;
-    //const u64 fat32Max = 0xFFFFFFFF;
-    //const u64 splitSize = 0xFFFF0000;
-    const u64 smashTID = 0x01006A800016E000;
     u64 bufSize = 0x0F0F0F0F;
 
     if(runningTID() != smashTID)

@@ -30,6 +30,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 #     - icon.jpg
 #     - <libnx folder>/default_icon.jpg
 #---------------------------------------------------------------------------------
+MAKEFLAGS += --jobs=8
 
 GITREV := $(shell git rev-parse HEAD 2>/dev/null)
 GITREV_SHORT := $(shell git rev-parse HEAD 2>/dev/null | cut -c1-8)

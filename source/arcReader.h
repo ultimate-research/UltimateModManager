@@ -11,6 +11,9 @@
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
 
+#define SUBFILE_DECOMPRESSED      0x00000000
+#define SUBFILE_COMPRESSION       0x07000000
+
 #define LOADARRAY(arr, type, count)              \
     arr = (type*)malloc(sizeof(type) * (count)); \
     for (size_t i = 0; i < count; i++) reader.load(arr[i])
@@ -81,6 +84,11 @@ class ArcReader {
     // extra saved data
     u64 subFilesOffset = 0;
     u32 subFilesCount = 0;
+    u64 fileInfoSubIndexOffset = 0;
+    u32 fileInfoSubIndexCount = 0;
+    u64 dirOffsetsOffset = 0;
+    u32 dirOffsetsCount = 0;
+    u64 streamOffsetsOffset = 0;
     _sCompressedTableHeader compHeader;
     char* table;
 
@@ -202,6 +210,7 @@ class ArcReader {
         LOADARRAY(streamHashToName, _sStreamHashToName, streamHeader.StreamHashCount);
         LOADARRAY(streamNameToHash, _sStreamNameToHash, streamHeader.StreamHashCount);
         LOADARRAY(streamIndexToFile, _sStreamIndexToOffset, streamHeader.StreamIndexToOffsetCount);
+        streamOffsetsOffset = reader.pos;
         LOADARRAY(streamOffsets, _sStreamOffset, streamHeader.StreamOffsetCount);
 
         // Unknown
@@ -213,8 +222,9 @@ class ArcReader {
         LOADARRAY(filePathToIndexHashGroup, _sHashIndexGroup, unkCount1);
 
         // FileTables
-
+        printf("\n\n\nstart: %lx", reader.pos);
         LOADARRAY(fileInfoPath, _sFileInformationPath, fsHeader.FileInformationPathCount);
+        printf("\n\n\n\n\nstop: %lx", reader.pos);
         LOADARRAY(fileInfoIndex, _sFileInformationIndex, fsHeader.FileInformationIndexCount);
 
         // directory tables
@@ -222,12 +232,16 @@ class ArcReader {
         // directory hashes by length and index to directory probably 0x6000 something
         LOADARRAY(directoryHashGroup, _sHashIndexGroup, fsHeader.DirectoryCount);
         LOADARRAY(directoryList, _sDirectoryList, fsHeader.DirectoryCount);
+        dirOffsetsOffset = reader.pos;
+        dirOffsetsCount = fsHeader.DirectoryOffsetCount1 + fsHeader.DirectoryOffsetCount2 + extraFolder;
         LOADARRAY(directoryOffsets, _sDirectoryOffset, fsHeader.DirectoryOffsetCount1 + fsHeader.DirectoryOffsetCount2 + extraFolder);
         LOADARRAY(directoryChildHashGroup, _sHashIndexGroup, fsHeader.DirectoryHashSearchCount);
 
         // file information tables
         numFiles = fsHeader.FileInformationCount + fsHeader.SubFileCount2 + extraCount;
         LOADARRAY(fileInfoV2, _sFileInformationV2, numFiles);
+        fileInfoSubIndexOffset = reader.pos;
+        fileInfoSubIndexCount = fsHeader.FileInformationSubIndexCount + fsHeader.SubFileCount2 + extraCount2;
         LOADARRAY(fileInfoSubIndex, _sFileInformationSubIndex, fsHeader.FileInformationSubIndexCount + fsHeader.SubFileCount2 + extraCount2);
         subFilesOffset = reader.pos;
         subFilesCount = fsHeader.SubFileCount + fsHeader.SubFileCount2 + extraSubCount;
@@ -337,10 +351,12 @@ class ArcReader {
         free(table);
     }
 
-    void writeTableData (void* data, u64 totalSize, u64 offset, FILE * writer) {
-        errno = 0;
+    void updateTableData(void* data, u64 totalSize, u64 offset) {
         char* charData = (char*)data;
         for(u64 i = 0; i < totalSize; i++) table[offset+i] = charData[i];
+    }
+    void writeTableData (FILE * writer) {
+        errno = 0;
         if (compHeader.DataOffset > 0x10) printf("\nOOF\n");  // todo
         else if (compHeader.DataOffset == 0x10) {
             size_t origTableSize;
@@ -395,8 +411,39 @@ class ArcReader {
 
    public:
     int Version;
+    u64 fileDataEnd() {
+        u64 offset = 0;
+        u64 end = 0;
+        for(u64 i = 0; i < numFiles; i++) {
+            //_sFileInformationPath path = fileInfoPath[fileInfoV2[i].PathIndex];
+            _sFileInformationSubIndex subIndex = fileInfoSubIndex[fileInfoV2[i].SubIndexIndex];
+            _sSubFileInfo subFile = subFiles[subIndex.SubFileIndex];
+            _sDirectoryOffset directoryOffset = directoryOffsets[subIndex.DirectoryOffsetIndex];
+            offset = header.FileDataOffset + directoryOffset.Offset + (subFile.Offset<<2) + subFile.CompSize;
+            if (offset > end) {
+                end = offset;
+            }
+        }
+        return end;
+    }
+    u32 lastDirOffsetIndex() {
+        u32 last = 0;
+        for(u64 i = 0; i < numFiles; i++) {
+            //_sFileInformationPath path = fileInfoPath[fileInfoV2[i].PathIndex];
+            _sFileInformationSubIndex subIndex = fileInfoSubIndex[fileInfoV2[i].SubIndexIndex];
+            _sDirectoryOffset directoryOffset = directoryOffsets[subIndex.DirectoryOffsetIndex];
+            if (directoryOffset.Offset > directoryOffsets[last].Offset) {
+                last = subIndex.DirectoryOffsetIndex;
+            }
+        }
+        return last;
+    }
     void writeFileInfo(FILE * arc) {
-        writeTableData(subFiles, sizeof(_sSubFileInfo) * subFilesCount, subFilesOffset, arc);
+        updateTableData(directoryOffsets, sizeof(_sDirectoryOffset) * dirOffsetsCount, dirOffsetsOffset);
+        updateTableData(streamOffsets, sizeof(_sStreamOffset) * streamHeader.StreamOffsetCount, streamOffsetsOffset);
+        updateTableData(fileInfoSubIndex, sizeof(_sFileInformationSubIndex) * fileInfoSubIndexCount, fileInfoSubIndexOffset);
+        updateTableData(subFiles, sizeof(_sSubFileInfo) * subFilesCount, subFilesOffset);
+        writeTableData(arc);
     }
     bool restoreTable() {
         if(std::filesystem::exists(tablePath)) {
@@ -415,26 +462,68 @@ class ArcReader {
         }
         return false;
     }
-    int updateFileInfo(std::string path, u32 Offset = 0, u32 CompSize = 0, u32 DecompSize = 0, u32 Flags = 0) {
+    int updateFileInfo(std::string path, u64 Offset = 0, u64 CompSize = 0, u32 DecompSize = 0, u32 Flags = 0) {
         int regionIndex = getRegion();
         checkRegionalSuffix(path, regionIndex);
 
         u32 path_hash = crc32Calculate(path.c_str(), path.size());
         if ((Version != 0x00010000 && pathToFileInfo.count(path_hash) == 0) ||
-            (Version == 0x00010000 && pathToFileInfoV1.count(path_hash) == 0))
-            return -1;
+            (Version == 0x00010000 && pathToFileInfoV1.count(path_hash) == 0)) {  //
+            // check for stream file
+            if (pathCrc32ToStreamInfo.count(path_hash) != 0) {
+                auto fileinfo = pathCrc32ToStreamInfo[path_hash];
+                if (fileinfo.Flags == 1 || fileinfo.Flags == 2) {
+                    if (fileinfo.Flags == 2 && regionIndex > 5)
+                        regionIndex = 0;
+                    auto streamindex = streamIndexToFile[(fileinfo.NameIndex >> 8) + regionIndex].FileIndex;
+                    streamOffsets[streamindex].Offset = Offset;
+                    streamOffsets[streamindex].Size = CompSize;
+                } else {
+                    auto streamindex = streamIndexToFile[fileinfo.NameIndex >> 8].FileIndex;
+                    streamOffsets[streamindex].Offset = Offset;
+                    streamOffsets[streamindex].Size = CompSize;
+                }
+                return 0;
+            }
+            return 0;
+        }
         if (Version == 0x00010000)
             return -1;
         _sFileInformationV2 fileinfo = pathToFileInfo[path_hash];
-        auto subIndex = fileInfoSubIndex[fileinfo.SubIndexIndex];
+        u32 lastdirIDX = lastDirOffsetIndex();
+        //u32 origDir = fileInfoSubIndex[fileinfo.SubIndexIndex].DirectoryOffsetIndex;
+        u32 subIndexIndex = fileinfo.SubIndexIndex;
         //regional
         if ((fileinfo.Flags & 0x00008000) == 0x8000) {
-            subIndex = fileInfoSubIndex[fileinfo.SubIndexIndex + 1 + regionIndex];
+            subIndexIndex = fileinfo.SubIndexIndex + 1 + regionIndex;
         }
-        if(Offset != 0) subFiles[subIndex.SubFileIndex].Offset = Offset;
-        if(CompSize != 0) subFiles[subIndex.SubFileIndex].CompSize = CompSize;
+        fileInfoSubIndex[subIndexIndex].DirectoryOffsetIndex = lastdirIDX;
+        _sFileInformationSubIndex subIndex = fileInfoSubIndex[subIndexIndex];
+        //printf("\n    last:%u\n  actual:%u\noriginal:%u\n", lastdirIDX, subIndex.DirectoryOffsetIndex, origDir);
+        //directoryOffsets[subIndex.DirectoryOffsetIndex].UnknownSomeSize += DecompSize;
+        //directoryOffsets[subIndex.DirectoryOffsetIndex].SubDataCount++;
+        //directoryOffsets[subIndex.DirectoryOffsetIndex].Size += CompSize;
+        auto directoryOffset = directoryOffsets[subIndex.DirectoryOffsetIndex];
+        //printf("\nFLAGS BEFORE: %x", subFiles[subIndex.SubFileIndex].Flags);
+        if((u64)header.FileDataOffset + directoryOffset.Offset + UINT_MAX > Offset) {
+            if(Offset != 0) subFiles[subIndex.SubFileIndex].Offset = (Offset - header.FileDataOffset - directoryOffset.Offset) >> 2;
+            while(((u64)header.FileDataOffset + directoryOffset.Offset + (subFiles[subIndex.SubFileIndex].Offset << 2)) < Offset)
+                subFiles[subIndex.SubFileIndex].Offset++;
+            if(CompSize != 0) {
+                directoryOffsets[subIndex.DirectoryOffsetIndex].Size -= subFiles[subIndex.SubFileIndex].CompSize;
+                directoryOffsets[subIndex.DirectoryOffsetIndex].Size += CompSize;
+                subFiles[subIndex.SubFileIndex].CompSize = CompSize;
+                if(CompSize == DecompSize) {
+                    //subFiles[subIndex.SubFileIndex].Flags &= ~SUBFILE_COMPRESSION;
+                    //subFiles[subIndex.SubFileIndex].Flags |= SUBFILE_DECOMPRESSED;
+                    subFiles[subIndex.SubFileIndex].Flags = SUBFILE_DECOMPRESSED;
+                }
+            }
+        }
+        else printf("\n\nNot close enough\n");
         if(DecompSize != 0) subFiles[subIndex.SubFileIndex].DecompSize = DecompSize;
         if(Flags != 0) subFiles[subIndex.SubFileIndex].Flags = Flags;
+        //printf("\nFLAGS AFTER: %x", subFiles[subIndex.SubFileIndex].Flags);
         return 0;
     }
     static const size_t NUM_REGIONS = 14;
@@ -456,7 +545,7 @@ class ArcReader {
         "+zh_tw"
     };
 
-    void GetFileInformation(std::string arcFileName, long& offset, u32& compSize, u32& decompSize, bool& regional, int regionIndex = 1) {
+    void GetFileInformation(std::string arcFileName, u64& offset, u32& compSize, u32& decompSize, bool& regional, int regionIndex = 1) {
         checkRegionalSuffix(arcFileName, regionIndex);
 
         u32 path_hash = crc32Calculate(arcFileName.c_str(), arcFileName.size());
@@ -503,7 +592,7 @@ class ArcReader {
             GetFileInformation(pathToFileInfo[path_hash], offset, compSize, decompSize, regionIndex);
     }
 
-    void GetFileInformation(_sFileInformationV2 fileinfo, long& offset, u32& compSize, u32& decompSize, int regionIndex) {
+    void GetFileInformation(_sFileInformationV2 fileinfo, u64& offset, u32& compSize, u32& decompSize, int regionIndex) {
         auto fileIndex = fileInfoIndex[fileinfo.IndexIndex];
 
         //redirect
@@ -528,7 +617,7 @@ class ArcReader {
         decompSize = subFile.DecompSize;
     }
 
-    void GetFileInformation(_sFileInformationV1 fileInfo, long& offset, u32& compSize, u32& decompSize, int regionIndex) {
+    void GetFileInformation(_sFileInformationV1 fileInfo, u64& offset, u32& compSize, u32& decompSize, int regionIndex) {
         auto subFile = subFiles[fileInfo.SubFile_Index];
         auto dirIndex = directoryList[fileInfo.DirectoryIndex >> 8].FullPathHashLengthAndIndex >> 8;
         auto directoryOffset = directoryOffsets[dirIndex];
