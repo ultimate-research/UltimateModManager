@@ -2,11 +2,13 @@
 #include <filesystem>
 #include <map>
 #include "menu.h"
+#include "switch.h"
 
 #define NUM_PROGRESS_CHARS 50
 const u64 smashTID = 0x01006A800016E000;
 const char* manager_root = "sdmc:/UltimateModManager/";
 const char* tablePath = "sdmc:/UltimateModManager/compTable.backup";
+bool applicationMode = false;
 enum smashRegions{
     jp_ja,
     us_en,
@@ -43,9 +45,13 @@ const std::map<std::string, int> regionMap {
     {"zh-Hant", zh_tw},
 };
 
+bool isApplicationMode() {
+    AppletType currAppType = appletGetAppletType();
+    return (currAppType == AppletType_Application || currAppType == AppletType_SystemApplication);
+}
+
 int getRegion() {
     u64 languageCode;
-    //setGetLanguageCode(&languageCode);
     appletGetDesiredLanguage(&languageCode);
     return regionMap.find((char*)&languageCode)->second;
 }

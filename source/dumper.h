@@ -62,8 +62,7 @@ void copy(const char* from, const char* to, bool exfat = false)
       printf(CONSOLE_RED "\nYou must override Smash for this application to work properly.\nHold 'R' while launching Smash to do so." CONSOLE_RESET);
       return;
     }
-    AppletType at = appletGetAppletType();
-    if (at != AppletType_Application && at != AppletType_SystemApplication)
+    if (!applicationMode)
     {
       printf(CONSOLE_RED "\nNo applet mode.\nYou must override Smash for this application to work properly.\nHold 'R' while launching Smash to do so." CONSOLE_RESET);
       return;

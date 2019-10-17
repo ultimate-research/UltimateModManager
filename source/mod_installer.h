@@ -572,7 +572,10 @@ void modInstallerMainLoop(int kDown)
                 printf(CONSOLE_RESET);
 
             closedir(d);
-            console_set_status("\n" GREEN "Mod Installer" RESET);
+            if(applicationMode)
+                console_set_status("\n" GREEN "Mod Installer" RESET);
+            else
+                console_set_status("\n" GREEN "Mod Installer" CONSOLE_RED "                                         APPLET MODE NOT RECCOMENED" RESET);
             printf(CONSOLE_ESC(s) CONSOLE_ESC(46;1H) GREEN "A" RESET "=Install "
                    GREEN "Y" RESET "=Uninstall " GREEN "L+R+Y" RESET "=Delete "
                    GREEN "R-Stick" RESET "=Scroll " GREEN "ZR" RESET "=Multi-select "

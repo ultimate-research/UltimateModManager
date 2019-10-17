@@ -8,6 +8,7 @@
 #include "dumper.h"
 #include "mod_installer.h"
 #include "menu.h"
+#include "utils.h"
 extern "C" {
 #include "ftp_main.h"
 #include "console.h"
@@ -48,6 +49,7 @@ int main(int argc, char **argv)
     }
     appletSetScreenShotPermission(AppletScreenShotPermission_Enable);
     smashVersion = getSmashVersion();
+    applicationMode = isApplicationMode();
 
     while(appletMainLoop())
     {
