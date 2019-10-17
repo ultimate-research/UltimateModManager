@@ -188,8 +188,12 @@ int load_mod(const char* path, long offset, FILE* arc) {
             bool regional;
             arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional, regionIndex);
             if(modSize > decompSize) {
-              if(arcReader->updateFileInfo(arcFileName, 0, 0, modSize) == -1) printf("\n\n\n\nfailed");
-              pendingTableWrite = true;
+              if(arcReader->updateFileInfo(arcFileName, 0, 0, modSize) == -1) {
+                  log(CONSOLE_RED "%s can not be larger than expected uncompressed size\n" CONSOLE_RESET, path);
+                  return -1;
+              }
+              else
+                  pendingTableWrite = true;
             }
             if(compSize != decompSize && !ZSTDFileIsFrame(path)) {
                 if(compSize != 0) {
