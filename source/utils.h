@@ -52,7 +52,12 @@ bool isApplicationMode() {
 
 int getRegion() {
     u64 languageCode;
-    appletGetDesiredLanguage(&languageCode);
+    if(R_FAILED(appletGetDesiredLanguage(&languageCode))) {
+        if (R_SUCCEEDED(setInitialize())) {
+            setGetSystemLanguage(&languageCode);
+            setExit();
+        }
+    }
     return regionMap.find((char*)&languageCode)->second;
 }
 
