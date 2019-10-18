@@ -125,7 +125,7 @@ class ArcReader {
         params.cParams = ZSTD_getCParams(cLevel, decomp_size, 0);
         size_t dataSize = ZSTD_compress_advanced(cctx, comp, comp_size, decomp, decomp_size, nullptr, 0, params);
         if(ZSTD_isError(dataSize)) {
-            printf("\n\n\n\n\nzstd fail: %s\n", ZSTD_getErrorName(dataSize));
+            printf("\nzstd fail: %s\n", ZSTD_getErrorName(dataSize));
             return 0;
         }
         ZSTD_freeCCtx(cctx);
@@ -351,7 +351,6 @@ class ArcReader {
             char* compTable = (char*)malloc(origTableSize);
             size_t compTableSize = zstd_compress(compTable, origTableSize, table, compHeader.DecompressedSize, 22);
             if(compTableSize == 0) {
-                printf("compFail\n");
                 return;
             }
             compHeader.CompressedSize = compTableSize;
