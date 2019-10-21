@@ -377,8 +377,9 @@ void load_mods(FILE* f_arc) {
     }
 
     print_progress(i, num_mod_files);
+    if (num_mod_files == 0)
+        printf("Note: " CONSOLE_YELLOW "Nothing installed\n" CONSOLE_RESET);
     consoleUpdate(NULL);
-
     mod_files.clear();
 }
 
@@ -469,7 +470,7 @@ end:
         errorLogs.clear();
     }
     else
-    printf(CONSOLE_GREEN "Successful\n" CONSOLE_RESET);
+        printf(CONSOLE_GREEN "Successful\n" CONSOLE_RESET);
     printf("Press B to return to the Mod Installer.\n");
     printf("Press X to launch Smash\n\n");
 }
