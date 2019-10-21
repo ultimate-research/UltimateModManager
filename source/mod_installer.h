@@ -570,7 +570,7 @@ void modInstallerMainLoop(int kDown)
             }
 
             if(curr_folder_index < 42 || curr_folder_index <= mod_folder_index)
-                printf("backups\n");
+                printf(CONSOLE_YELLOW "Restore backups and file table\n" CONSOLE_RESET);
 
             if (mod_folder_index == curr_folder_index)
                 printf(CONSOLE_RESET);
