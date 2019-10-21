@@ -187,13 +187,14 @@ int load_mod(const char* path, long offset, FILE* arc) {
             std::string arcFileName = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
             bool regional;
             arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional, regionIndex);
+            bool infoUpdated = false;
             if(modSize > decompSize) {
               if(arcReader->updateFileInfo(arcFileName, 0, 0, modSize) == -1) {
                   log(CONSOLE_RED "%s can not be larger than expected uncompressed size\n" CONSOLE_RESET, path);
                   return -1;
               }
               else
-                  pendingTableWrite = true;
+                  infoUpdated = true;
             }
             if(compSize != decompSize && !ZSTDFileIsFrame(path)) {
                 if(compSize != 0) {
@@ -207,6 +208,8 @@ int load_mod(const char* path, long offset, FILE* arc) {
                 // should never happen, only mods with an Offsets entry get here
                 else log(CONSOLE_RED "Compressed size not found for %s\n" CONSOLE_RESET, path);
             }
+            if(infoUpdated)
+                pendingTableWrite = true;
         }
     }
     if(pathStr.find(backups_root) == std::string::npos) {
