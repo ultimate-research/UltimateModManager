@@ -38,7 +38,7 @@ LATESTTAG := $(shell git describe --tags $(shell git rev-list --tags --max-count
 APP_TITLE	:=	Ultimate Mod Manager
 APP_AUTHOR	:=	Genwald, jugeeya, jam1garner
 ICON 	:= icon.jpg
-APP_VERSION	:=	${LATESTTAG}
+APP_VERSION	:=	$(LATESTTAG)
 
 ifneq ($(strip $(GITREV)),)
 GITTAG := $(shell git describe --tags $(GITREV) 2>/dev/null)
@@ -62,10 +62,7 @@ EXEFS_SRC	:=	exefs_src
 ARCH	:=	-march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE
 
 CFLAGS	:=	-g -Wall -O3 -ffunction-sections \
-			$(ARCH) $(DEFINES) \
-			-DVERSION_MAJOR=${VERSION_MAJOR} \
-			-DVERSION_MINOR=${VERSION_MINOR} \
-			-DVERSION_MICRO=${VERSION_MICRO}
+			$(ARCH) $(DEFINES)
 
 CFLAGS	+=	$(INCLUDE) -D__SWITCH__ -DVERSION_STRING="\"$(APP_VERSION)\""
 
