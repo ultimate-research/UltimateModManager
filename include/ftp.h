@@ -1,5 +1,6 @@
 #pragma once
 
+#define STATUS_STRING "ftpd v2.3"
 /*! Loop status */
 typedef enum
 {
