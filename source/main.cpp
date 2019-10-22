@@ -47,7 +47,6 @@ int main(int argc, char **argv)
         menu = ARC_DUMPER_MENU;
         printDumperMenu();
     }
-    appletSetScreenShotPermission(AppletScreenShotPermission_Enable);
     smashVersion = getSmashVersion();
     applicationMode = isApplicationMode();
 
