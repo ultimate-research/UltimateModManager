@@ -30,7 +30,13 @@ void mainMenuLoop(int kDown) {
     }
 
     else if (kDown & KEY_Y) {
-        menu = FTP_MENU;
+        nifmInitialize();
+        NifmInternetConnectionStatus connectionStatus;
+        if(R_SUCCEEDED(nifmGetInternetConnectionStatus(nullptr, nullptr, &connectionStatus))) {
+            if(connectionStatus == NifmInternetConnectionStatus_Connected)
+                menu = FTP_MENU;
+        }
+        nifmExit();
     }
 }
 
