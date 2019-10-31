@@ -1,3 +1,4 @@
+#pragma once
 #include <fstream>
 #include <iostream>
 #include <istream>
@@ -84,6 +85,8 @@ class ArcReader {
     _sCompressedTableHeader compHeader;
     char* table;
 
+    bool initialized = false;
+
     bool zstd_decompress(void* comp, void* decomp, u32 comp_size, u32 decomp_size) {
         ZSTD_resetDStream(dstream);
 
@@ -92,7 +95,7 @@ class ArcReader {
 
         size_t ret = ZSTD_decompressStream(dstream, &output, &input);
         if (ZSTD_isError(ret)) {
-            printf("err %s\n", ZSTD_getErrorName(ret));
+            log("err %s\n", ZSTD_getErrorName(ret));
             return false;
         }
 
@@ -125,7 +128,7 @@ class ArcReader {
         params.cParams = ZSTD_getCParams(cLevel, decomp_size, 0);
         size_t dataSize = ZSTD_compress_advanced(cctx, comp, comp_size, decomp, decomp_size, nullptr, 0, params);
         if(ZSTD_isError(dataSize)) {
-            printf("\nzstd fail: %s\n", ZSTD_getErrorName(dataSize));
+            log("zstd fail: %s\n", ZSTD_getErrorName(dataSize));
             return 0;
         }
         ZSTD_freeCCtx(cctx);
@@ -138,7 +141,7 @@ class ArcReader {
         std::fstream reader(this->arcPath);
         reader.read((char*)&header, sizeof(header));
         if (header.Magic != Magic) {
-            printf("ARC magic does not match\n");  // add proper errors
+            log("ARC magic does not match\n");  // add proper errors
             return false;
         }
         reader.seekg(header.FileSystemOffset);
@@ -624,6 +627,11 @@ class ArcReader {
         if (!ret) return;
         FilePaths = GetFileList();
         InitializePathToFileInfo();
+        initialized = ret;
+    }
+
+    bool isInitialized() {
+        return initialized;
     }
 
     ~ArcReader() {

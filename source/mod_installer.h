@@ -42,23 +42,10 @@ s64 mod_folder_index = 0;
 int smashVersion;
 ZSTD_CCtx* compContext = nullptr;
 std::list<s64> installIDXs;
-std::vector<std::string> errorLogs;
 
 const char* mods_root = "sdmc:/UltimateModManager/mods/";
 const char* backups_root = "sdmc:/UltimateModManager/backups/";
 std::string arc_path = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
-
-void log(const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    int len = vsnprintf(nullptr, 0, fmt, args) + 1;
-    char* buffer = new char[len];
-    vsnprintf(buffer, len, fmt, args);
-
-    std::string logLine = std::string(buffer);
-    delete[] buffer;
-    errorLogs.push_back(logLine);
-}
 
 #ifdef IS_DEBUG
  #define debug_log(...) \
@@ -176,6 +163,9 @@ int load_mod(const char* path, long offset, FILE* arc) {
             debug_log("Parsing data.arc\n");
             consoleUpdate(NULL);
             arcReader = new ArcReader(arc_path.c_str());
+            if(!arcReader->isInitialized()) {
+                arcReader = nullptr;
+            }
             debug_log("Done parsing\n");
             consoleUpdate(NULL);
         }
@@ -328,12 +318,15 @@ void load_mods(FILE* f_arc) {
         print_progress(i, num_mod_files);
         consoleUpdate(NULL);
         long offset = mod_file.offset;
-        if(!offset) {
+        if(offset == 0) {
             if(arcReader == nullptr) {
                 debug_log("Parsing data.arc\n");
                 consoleUpdate(NULL);
                 fclose(f_arc);
                 arcReader = new ArcReader(arc_path.c_str());
+                if(!arcReader->isInitialized()) {
+                    arcReader = nullptr;
+                }
                 f_arc = fopen(arc_path.c_str(), "r+b");
                 debug_log("Done parsing\n");
                 consoleUpdate(NULL);
@@ -345,7 +338,7 @@ void load_mods(FILE* f_arc) {
             }
         }
 
-        if (!offset) {
+        if (offset == 0) {
             log(CONSOLE_RED "Found file '%s', offset not found.\n" CONSOLE_RESET "   Make sure the file name and/or path is correct.\n", arcFileName.c_str());
             i++;
             continue;
@@ -563,8 +556,12 @@ void modInstallerMainLoop(int kDown)
                 if (start_install) {
                     found_dir = true;
                     add_mod_dir("backups");
-                    if(arcReader == nullptr)
+                    if(arcReader == nullptr) {
                         arcReader = new ArcReader(arc_path.c_str());
+                        if(!arcReader->isInitialized()) {
+                            arcReader = nullptr;
+                        }
+                    }
                     arcReader->restoreTable();
                 }
             }

@@ -1,6 +1,7 @@
 #pragma once
 #include <filesystem>
 #include <map>
+#include <stdarg.h>
 #include "menu.h"
 #include "switch.h"
 
@@ -103,6 +104,19 @@ void print_progress(size_t progress, size_t max) {
         printf(" ");
 
     printf("]\t%lu/%lu\n" RESET, progress, max);
+}
+
+std::vector<std::string> errorLogs;
+void log(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    int len = vsnprintf(nullptr, 0, fmt, args) + 1;
+    char* buffer = new char[len];
+    vsnprintf(buffer, len, fmt, args);
+
+    std::string logLine = std::string(buffer);
+    delete[] buffer;
+    errorLogs.push_back(logLine);
 }
 
 bool isServiceRunning(const char *serviceName) {
