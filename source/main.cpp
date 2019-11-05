@@ -75,6 +75,6 @@ int main(int argc, char **argv)
 
         consoleUpdate(NULL);
     }
-    consoleExit(NULL);
+    console_exit();
     return 0;
 }

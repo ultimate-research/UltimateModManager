@@ -142,10 +142,16 @@ console_init(void)
   consoleInit(&status_console);
   consoleSetWindow(&status_console, 0, 0, CONSOLE_WIDTH, 1);
 
-  consoleInit( &main_console);
+  consoleInit(&main_console);
   consoleSetWindow(&main_console, 0, 1, CONSOLE_WIDTH, CONSOLE_HEIGHT-1);
 
   consoleSelect(&main_console);
+}
+void
+console_exit(void)
+{
+  consoleExit(&status_console);
+  consoleExit(&main_console);
 }
 #endif
 
