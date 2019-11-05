@@ -473,9 +473,9 @@ end:
 
 void modInstallerMainLoop(int kDown)
 {
+    u64 kHeld = hidKeysHeld(CONTROLLER_P1_AUTO);
     if (!installation_finish) {
         consoleClear();
-        u64 kHeld = hidKeysHeld(CONTROLLER_P1_AUTO);
         if (kHeld & KEY_RSTICK_DOWN) {
             svcSleepThread(7e+7);
             mod_folder_index++;
@@ -617,5 +617,14 @@ void modInstallerMainLoop(int kDown)
     }
     if(kDown & KEY_X) {
         appletRequestLaunchApplication(smashTID, NULL);
+    }
+    if(kHeld & KEY_L && kHeld & KEY_R && kDown & KEY_MINUS) {
+        if(arcReader == nullptr) {
+            arcReader = new ArcReader(arc_path.c_str());
+            if(!arcReader->isInitialized()) {
+                arcReader = nullptr;
+            }
+        }
+        arcReader->restoreTable();
     }
 }
