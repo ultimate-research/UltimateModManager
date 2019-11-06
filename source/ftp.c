@@ -2092,8 +2092,8 @@ ftp_exit(void)
   }
 #elif defined(__SWITCH__)
   /* deinitialize socket driver */
-  console_render();
-  console_print(CYAN "Waiting for socketExit()...\n" RESET);
+  //console_render();
+  //console_print(CYAN "Waiting for socketExit()...\n" RESET);
 
   socketExit();
 

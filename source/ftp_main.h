@@ -73,27 +73,6 @@ wait_for_b(void)
   /* B was not pressed */
   return LOOP_CONTINUE;
 }
-#elif defined(__SWITCH__)
-/*! wait until the B button is pressed
- *
- *  @returns loop status
- */
-static loop_status_t
-wait_for_b(void)
-{
-  /* update button state */
-  hidScanInput();
-
-  /* check if B was pressed */
-  if(hidKeysDown(CONTROLLER_P1_AUTO) & KEY_B) {
-    menu = MAIN_MENU;
-    printMainMenu();
-    return LOOP_EXIT;
-  }
-
-  /* B was not pressed */
-  return LOOP_CONTINUE;
-}
 #endif
 
 /*! entry point
@@ -159,15 +138,13 @@ ftp_main()
 
       /* done with ftp */
       ftp_exit();
-    }
-    else {
       menu = MAIN_MENU;
       printMainMenu();
       status = LOOP_EXIT;
     }
   }
 
-#if defined(_3DS) || defined(__SWITCH__)
+#if defined(_3DS)
   console_print("Press B to exit\n");
 #endif
 
@@ -184,8 +161,6 @@ log_fail:
   gfxExit();
   acExit();
 #elif defined(__SWITCH__)
-  loop(wait_for_b);
-
   /* deinitialize Switch services */
   nifmExit();
 #endif
