@@ -26,6 +26,7 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         tag: beta
         body: Beta build.
+        prerelease: true
         gzip: false
         files: Ultimate_Mod_Manager.nro
         allow_override: true
