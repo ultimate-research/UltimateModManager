@@ -20,7 +20,6 @@ void mainMenuLoop(int kDown) {
         menu = MOD_INSTALLER_MENU;
 
         consoleClear();
-        console_set_status("\n" GREEN "Mod Installer" RESET);
     }
 
     else if (kDown & KEY_X) {
