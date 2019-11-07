@@ -26,7 +26,7 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         name: beta
         code: beta
-        body: Beta build.
+        body: Latest commit, automatically updated. May not be fully tested or fully working.
         prerelease: true
         recreate: true
         assets: Ultimate_Mod_Manager.nro:Ultimate_Mod_Manager.nro:application/octet-stream
