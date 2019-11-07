@@ -8,7 +8,7 @@
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
 #include "utils.h"
-#include "ArcReader.h"
+#include "arcReader.h"
 #include <stdarg.h>
 
 //#define IS_DEBUG
