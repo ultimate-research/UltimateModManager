@@ -13,7 +13,7 @@ jobs:
     - uses: actions/checkout@master
     - name: Download DEVKITPRO
       run: wget https://github.com/devkitPro/pacman/releases/download/devkitpro-pacman-1.0.1/devkitpro-pacman.deb
-    - name: Install dependencies
+    - name: Install DKP
       run: sudo dpkg -i devkitpro-pacman.deb
     - name: Install packages
       run: printf "\nY" | sudo dkp-pacman -S switch-dev switch-mbedtls
@@ -21,12 +21,12 @@ jobs:
       run: make
 
     - name: Upload Release
-      uses: meeDamian/github-release@v1.0.1
+      uses: majkrzak/create-release@latest
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        tag: beta
+        name: beta
+        code: beta
         body: Beta build.
         prerelease: true
-        gzip: false
-        files: Ultimate_Mod_Manager.nro
-        allow_override: true
+        recreate: true
+        assets: Ultimate_Mod_Manager.nro:Ultimate_Mod_Manager.nro:application/octet-stream
