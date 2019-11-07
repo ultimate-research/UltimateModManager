@@ -1,0 +1,31 @@
+name: C/C++ CI
+
+on: [push]
+
+jobs:
+  build:
+    env:
+      DEVKITPRO: /opt/devkitpro
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@master
+    - name: Download DEVKITPRO
+      run: wget https://github.com/devkitPro/pacman/releases/download/devkitpro-pacman-1.0.1/devkitpro-pacman.deb
+    - name: Install dependencies
+      run: sudo dpkg -i devkitpro-pacman.deb
+    - name: Install packages
+      run: printf "\nY" | sudo dkp-pacman -S switch-dev switch-mbedtls
+    - name: make
+      run: make
+
+    - name: Upload Release
+      uses: meeDamian/github-release@v1.0.1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        tag: beta
+        body: Beta build.
+        gzip: false
+        files: Ultimate_Mod_Manager.nro
+        allow_override: true
