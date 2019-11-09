@@ -87,9 +87,14 @@ bool ZSTDFileIsFrame(const char* filePath) {
   return ZSTD_isFrame(buf, magicSize);
 }
 
+bool paddable(u64 padSize) {
+    return !(padSize == 1 || padSize == 2 || padSize == 5);
+}
+
 char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns pointer to heap
 {
-  char* outBuff = new char[compSize+1];
+  u64 bufSize = compSize+0x10;
+  char* outBuff = new char[bufSize];
   FILE* inFile = fopen(path, "rb");
   fseek(inFile, 0, SEEK_END);
   u64 inSize = ftell(inFile);
@@ -104,16 +109,14 @@ char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns po
   do
   {
     params.cParams = ZSTD_getCParams(compLvl++, inSize, 0);
-    dataSize = ZSTD_compress_advanced(compContext, outBuff, compSize+1, inBuff, inSize, nullptr, 0, params);
+    dataSize = ZSTD_compress_advanced(compContext, outBuff, bufSize, inBuff, inSize, nullptr, 0, params);
     if(compLvl==8) compLvl = 17;  // skip arbitrary amount of levels for speed.
+    if(compLvl > ZSTD_maxCLevel()) {
+      delete[] outBuff;
+      outBuff = nullptr;
+    }
   }
-  while ((dataSize > compSize || ZSTD_isError(dataSize)) && compLvl <= ZSTD_maxCLevel());
-
-  if(dataSize > compSize || ZSTD_isError(dataSize))
-  {
-    delete[] outBuff;
-    outBuff = nullptr;
-  }
+  while ((dataSize > compSize || ZSTD_isError(dataSize) || !paddable(compSize - dataSize)) && compLvl <= ZSTD_maxCLevel());
 
   delete[] inBuff;
   return outBuff;
@@ -209,14 +212,14 @@ int load_mod(const char* path, long offset, FILE* arc) {
     if(compBuf != nullptr) {
         u64 headerSize = ZSTD_frameHeaderSize(compBuf, compSize);
         //u64 frameSize = ZSTD_findFrameCompressedSize(compBuf, compSize);
-        u64 paddingSize = (compSize - realCompSize);
+        u64 paddingSize = compSize - realCompSize;
         fseek(arc, offset, SEEK_SET);
         fwrite(compBuf, sizeof(char), headerSize, arc);
         char* zBuff = new char[paddingSize];
         memset(zBuff, 0, paddingSize);
         if (paddingSize % 3 != 0) {
-            if (paddingSize % 3 == 1) zBuff[paddingSize-4] = 2;
-            else if (paddingSize % 3 == 2) {
+            if (paddingSize >= 4 && paddingSize % 3 == 1) zBuff[paddingSize-4] = 2;
+            else if (paddingSize >= 8 && paddingSize % 3 == 2) {
                 zBuff[paddingSize-4] = 2;
                 zBuff[paddingSize-8] = 2;
             }
