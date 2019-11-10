@@ -93,7 +93,7 @@ bool paddable(u64 padSize) {
 
 char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns pointer to heap
 {
-  u64 bufSize = compSize+0x10;
+  u64 bufSize = compSize+0x30;
   char* outBuff = new char[bufSize];
   FILE* inFile = fopen(path, "rb");
   fseek(inFile, 0, SEEK_END);
@@ -103,15 +103,22 @@ char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns po
   fread(inBuff, sizeof(char), inSize, inFile);
   fclose(inFile);
   int compLvl = 3;
+  int bytesAway = compSize;
   if(compContext == nullptr) compContext = ZSTD_createCCtx();
-  ZSTD_parameters params;
-  params.fParams = {0,0,1};  // Minimize header size
+   // Minimize header size
+  ZSTD_CCtx_setParameter(compContext, ZSTD_c_contentSizeFlag, 1);
+  ZSTD_CCtx_setParameter(compContext, ZSTD_c_checksumFlag, 0);
+  ZSTD_CCtx_setParameter(compContext, ZSTD_c_dictIDFlag, 1);
   do
   {
-    params.cParams = ZSTD_getCParams(compLvl++, inSize, 0);
-    dataSize = ZSTD_compress_advanced(compContext, outBuff, bufSize, inBuff, inSize, nullptr, 0, params);
-    if(compLvl==8) compLvl = 17;  // skip arbitrary amount of levels for speed.
+    ZSTD_CCtx_setParameter(compContext, ZSTD_c_compressionLevel, compLvl++);
+    dataSize = ZSTD_compress2(compContext, outBuff, bufSize, inBuff, inSize);
+    if(compLvl==10) compLvl = 17;  // skip arbitrary amount of levels for speed.
+    if(!ZSTD_isError(dataSize) && dataSize - compSize < (u64)bytesAway)
+        bytesAway = dataSize - compSize;
     if(compLvl > ZSTD_maxCLevel()) {
+      if((u64)bytesAway != compSize)
+          log("%lu bytes too large ", bytesAway);
       delete[] outBuff;
       outBuff = nullptr;
     }
