@@ -40,24 +40,7 @@ std::list<s64> installIDXs;
 
 const char* mods_root = "sdmc:/UltimateModManager/mods/";
 const char* backups_root = "sdmc:/UltimateModManager/backups/";
-const char* log_file = "sdmc:/UltimateModManager/log.txt";
 std::string arc_path = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
-
-const bool debug = std::filesystem::exists("sdmc:/UltimateModManager/debug.flag");
-void debug_log(const char* format, ...) {
-    if(debug) {
-        char buf[10];
-        std::time_t now = std::time(0);
-        std::strftime(buf, sizeof(buf), "%T", std::localtime(&now));
-        va_list args;
-        va_start(args, format);
-        FILE* log = fopen(log_file, "ab");
-        fprintf(log, "[%s] ", buf);
-        vfprintf(log, format, args);
-        fclose(log);
-        va_end(args);
-    }
-}
 
 int regionIndex = getRegion();
 
@@ -186,13 +169,18 @@ int load_mod(const char* path, long offset, FILE* arc) {
             bool regional;
             arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional, regionIndex);
             bool infoUpdated = false;
+            if(compSize == decompSize && modSize > decompSize)
+                if(arcReader->updateFileInfo(arcFileName, 0, 0, decompSize+1, SUBFILE_COMPRESSED_ZSTD) != -1) {
+                    infoUpdated = true;
+                    decompSize++;
+                }
             if(modSize > decompSize) {
-              if(arcReader->updateFileInfo(arcFileName, 0, 0, modSize) == -1) {
-                  log(CONSOLE_RED "%s can not be larger than expected uncompressed size\n" CONSOLE_RESET, path);
-                  return -1;
-              }
-              else
-                  infoUpdated = true;
+                if(arcReader->updateFileInfo(arcFileName, 0, 0, modSize) != -1)
+                    infoUpdated = true;
+                else {
+                    log(CONSOLE_RED "%s can not be larger than expected uncompressed size\n" CONSOLE_RESET, path);
+                    return -1;
+                }
             }
             if(compSize != decompSize && !ZSTDFileIsFrame(path)) {
                 if(compSize != 0) {

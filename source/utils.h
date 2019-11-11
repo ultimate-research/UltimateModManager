@@ -46,6 +46,23 @@ const std::map<std::string, int> regionMap {
     {"zh-Hant", zh_tw},
 };
 
+const char* log_file = "sdmc:/UltimateModManager/log.txt";
+const bool debug = std::filesystem::exists("sdmc:/UltimateModManager/debug.flag");
+void debug_log(const char* format, ...) {
+    if(debug) {
+        char buf[10];
+        std::time_t now = std::time(0);
+        std::strftime(buf, sizeof(buf), "%T", std::localtime(&now));
+        va_list args;
+        va_start(args, format);
+        FILE* log = fopen(log_file, "ab");
+        fprintf(log, "[%s] ", buf);
+        vfprintf(log, format, args);
+        fclose(log);
+        va_end(args);
+    }
+}
+
 bool isApplicationMode() {
     AppletType currAppType = appletGetAppletType();
     return (currAppType == AppletType_Application || currAppType == AppletType_SystemApplication);

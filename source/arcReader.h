@@ -12,6 +12,9 @@
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
 
+#define SUBFILE_DECOMPRESSED        0x00000000
+#define SUBFILE_COMPRESSED_ZSTD     0x00000003
+
 #define LOADARRAY(arr, type, count)              \
     arr = (type*)malloc(sizeof(type) * (count)); \
     for (size_t i = 0; i < count; i++) reader.load(arr[i])
