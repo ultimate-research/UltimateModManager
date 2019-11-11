@@ -117,10 +117,10 @@ char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns po
     if(!ZSTD_isError(dataSize) && dataSize - compSize < (u64)bytesAway)
         bytesAway = dataSize - compSize;
     if(compLvl > ZSTD_maxCLevel()) {
-      if((u64)bytesAway != compSize)
-          log("%lu bytes too large ", bytesAway);
-      delete[] outBuff;
-      outBuff = nullptr;
+        if((u64)bytesAway != compSize)
+            log("%d bytes too large ", bytesAway);
+        delete[] outBuff;
+        outBuff = nullptr;
     }
   }
   while ((dataSize > compSize || ZSTD_isError(dataSize) || !paddable(compSize - dataSize)) && compLvl <= ZSTD_maxCLevel());
@@ -218,7 +218,6 @@ int load_mod(const char* path, long offset, FILE* arc) {
     }
     if(compBuf != nullptr) {
         u64 headerSize = ZSTD_frameHeaderSize(compBuf, compSize);
-        //u64 frameSize = ZSTD_findFrameCompressedSize(compBuf, compSize);
         u64 paddingSize = compSize - realCompSize;
         fseek(arc, offset, SEEK_SET);
         fwrite(compBuf, sizeof(char), headerSize, arc);
@@ -313,32 +312,26 @@ void remove_last_mod_dir() {
 
 void load_mods(FILE* f_arc) {
     size_t num_mod_files = mod_files.size();
-    size_t i = 0;
-
     printf(CONSOLE_ESC(s));
-
-    for (ModFile mod_file : mod_files) {
-        std::string mod_path = mod_file.mod_path;
+    for(size_t i = 0; i < num_mod_files; i++) {
+        print_progress(i, num_mod_files);
+        consoleUpdate(NULL);
+        std::string mod_path = mod_files[i].mod_path;
         std::string rel_mod_dir;
         if (mod_path.find("backups") != std::string::npos)
             rel_mod_dir = mod_path.substr(strlen(backups_root));
         else
             rel_mod_dir = mod_path.substr(strlen(mods_root));
         std::string arcFileName = rel_mod_dir.substr(rel_mod_dir.find('/')+1);
-        print_progress(i, num_mod_files);
-        consoleUpdate(NULL);
-        long offset = mod_file.offset;
+        long offset = mod_files[i].offset;
         if(offset == 0) {
             if(arcReader == nullptr) {
-                debug_log("Parsing data.arc\n");
                 consoleUpdate(NULL);
                 fclose(f_arc);
                 arcReader = new ArcReader(arc_path.c_str());
-                if(!arcReader->isInitialized()) {
+                if(!arcReader->isInitialized())
                     arcReader = nullptr;
-                }
                 f_arc = fopen(arc_path.c_str(), "r+b");
-                debug_log("Done parsing\n");
                 consoleUpdate(NULL);
             }
             if(arcReader != nullptr) {
@@ -349,8 +342,7 @@ void load_mods(FILE* f_arc) {
         }
 
         if (offset == 0) {
-            log(CONSOLE_RED "Found file '%s', offset not found.\n" CONSOLE_RESET "   Make sure the file name and/or path is correct.\n", arcFileName.c_str());
-            i++;
+            log(CONSOLE_RED "\"%s\" was not found in the data.arc and no offset was in its name\n" CONSOLE_RESET "   Make sure the file name and path are correct.\n", arcFileName.c_str());
             continue;
         }
 
@@ -378,11 +370,8 @@ void load_mods(FILE* f_arc) {
                 free(backup_path);
             }
         }
-
-        i++;
     }
-
-    print_progress(i, num_mod_files);
+    print_progress(num_mod_files, num_mod_files);
     if (num_mod_files == 0)
         printf("Note: " CONSOLE_YELLOW "Nothing installed\n" CONSOLE_RESET);
     consoleUpdate(NULL);
