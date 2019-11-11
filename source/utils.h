@@ -107,16 +107,17 @@ void print_progress(size_t progress, size_t max) {
 }
 
 std::vector<std::string> errorLogs;
-void log(const char* fmt, ...) {
+void log(const char* format, ...) {
     va_list args;
-    va_start(args, fmt);
-    int len = vsnprintf(nullptr, 0, fmt, args) + 1;
+    va_start(args, format);
+    int len = vsnprintf(nullptr, 0, format, args) + 1;
     char* buffer = new char[len];
-    vsnprintf(buffer, len, fmt, args);
+    vsnprintf(buffer, len, format, args);
 
     std::string logLine = std::string(buffer);
     delete[] buffer;
     errorLogs.push_back(logLine);
+    va_end(args);
 }
 
 bool isServiceRunning(const char *serviceName) {

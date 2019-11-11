@@ -52,6 +52,7 @@ int main(int argc, char **argv)
         menu = ARC_DUMPER_MENU;
         printDumperMenu();
     }
+    remove(log_file);
     smashVersion = getSmashVersion();
     applicationMode = isApplicationMode();
 

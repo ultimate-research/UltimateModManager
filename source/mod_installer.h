@@ -10,12 +10,7 @@
 #include "utils.h"
 #include "arcReader.h"
 #include <stdarg.h>
-
-//#define IS_DEBUG
-
-#ifdef IS_DEBUG
 #include <ctime>
-#endif
 
 #define FILENAME_SIZE 0x130
 #define FILE_READ_SIZE 0x20000
@@ -45,19 +40,24 @@ std::list<s64> installIDXs;
 
 const char* mods_root = "sdmc:/UltimateModManager/mods/";
 const char* backups_root = "sdmc:/UltimateModManager/backups/";
+const char* log_file = "sdmc:/UltimateModManager/log.txt";
 std::string arc_path = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
 
-#ifdef IS_DEBUG
- #define debug_log(...) \
-     {char buf[10]; \
-     std::time_t now = std::time(0); \
-     std::strftime(buf, sizeof(buf), "%T", std::localtime(&now)); \
-     printf("[%s] ", buf); \
-     printf(__VA_ARGS__); \
-     consoleUpdate(NULL);}
-#else
-#define debug_log(...)
-#endif
+const bool debug = std::filesystem::exists("sdmc:/UltimateModManager/debug.flag");
+void debug_log(const char* format, ...) {
+    if(debug) {
+        char buf[10];
+        std::time_t now = std::time(0);
+        std::strftime(buf, sizeof(buf), "%T", std::localtime(&now));
+        va_list args;
+        va_start(args, format);
+        FILE* log = fopen(log_file, "ab");
+        fprintf(log, "[%s] ", buf);
+        vfprintf(log, format, args);
+        fclose(log);
+        va_end(args);
+    }
+}
 
 int regionIndex = getRegion();
 
@@ -141,7 +141,7 @@ void minBackup(u64 modSize, u64 offset, FILE* arc) {
             load_mod(backup_path, offset, arc);
         }
         else {
-          debug_log(CONSOLE_BLUE "Backup file 0x%lx.backup already exists\n" CONSOLE_RESET, offset);
+          debug_log("Backup file 0x%lx.backup already exists\n", offset);
           delete[] backup_path;
           return;
         }
@@ -170,13 +170,11 @@ int load_mod(const char* path, long offset, FILE* arc) {
 
     if(pathStr.substr(pathStr.find_last_of('/'), 3) != "/0x") {
         if(arcReader == nullptr) {
-            debug_log("Parsing data.arc\n");
             consoleUpdate(NULL);
             arcReader = new ArcReader(arc_path.c_str());
             if(!arcReader->isInitialized()) {
                 arcReader = nullptr;
             }
-            debug_log("Done parsing\n");
             consoleUpdate(NULL);
         }
         if(arcReader != nullptr) {
@@ -350,13 +348,12 @@ void load_mods(FILE* f_arc) {
             load_mod(mod_path.c_str(), offset, f_arc);
 
             remove(mod_path.c_str());
-            debug_log(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, mod_path.c_str());
         } else {
             if (installing == INSTALL) {
                 appletSetCpuBoostMode(ApmCpuBoostMode_Type1);
                 load_mod(mod_path.c_str(), offset, f_arc);
                 appletSetCpuBoostMode(ApmCpuBoostMode_Disabled);
-                debug_log(CONSOLE_GREEN "%s\n\n" CONSOLE_RESET, mod_path.c_str());
+                debug_log("installed \"%s\"\n", mod_path.c_str());
             } else if (installing == UNINSTALL) {
                 char* backup_path = (char*) malloc(FILENAME_SIZE);
                 snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
@@ -364,7 +361,7 @@ void load_mods(FILE* f_arc) {
                 if(std::filesystem::exists(backup_path)) {
                     load_mod(backup_path, offset, f_arc);
                     remove(backup_path);
-                    debug_log(CONSOLE_BLUE "%s\n\n" CONSOLE_RESET, backup_path);
+                    debug_log("restored \"%s\"\n", backup_path);
                 }
                 else log(CONSOLE_RED "backup '0x%x' does not exist\n" CONSOLE_RESET, offset);
                 free(backup_path);
@@ -385,8 +382,6 @@ int enumerate_mod_files(FILE* f_arc) {
 
     DIR *d;
     struct dirent *dir;
-
-    debug_log("Searching mod dir " CONSOLE_YELLOW "%s\n\n" CONSOLE_RESET, mod_dir.c_str());
 
     std::string abs_mod_dir = std::string(manager_root) + mod_dir;
     d = opendir(abs_mod_dir.c_str());
