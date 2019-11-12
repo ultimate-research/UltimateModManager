@@ -12,15 +12,11 @@
 #include <stdarg.h>
 #include <ctime>
 
-#define FILENAME_SIZE 0x130
 #define FILE_READ_SIZE 0x20000
-
-#define INSTALL false
-#define UNINSTALL true
 
 ArcReader* arcReader = nullptr;
 
-bool installing = INSTALL;
+bool uninstall = false;
 bool deleteMod = false;
 bool pendingTableWrite = false;
 
@@ -114,11 +110,13 @@ char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns po
 // Forward declaration for use in backup()
 int load_mod(const char* path, long offset, FILE* arc);
 
-void backup(u64 modSize, u64 offset, FILE* arc) {
-
-    char* backup_path = new char[FILENAME_SIZE];
-    snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
-
+void backup(char* modName, u64 modSize, u64 offset, FILE* arc) {
+    int fileNameSize = snprintf(nullptr, 0, "%s%s/0x%lx.backup", backups_root, modName, offset) + 1;
+    char* backup_path = new char[fileNameSize];
+    snprintf(backup_path, fileNameSize, "%s%s/0x%lx.backup", backups_root, modName, offset);
+    std::string parentPath = std::filesystem::path(backup_path).parent_path();
+    if(!std::filesystem::exists(parentPath))
+        mkdir(parentPath.c_str(), 0777);
     if (fileExists(std::string(backup_path))) {
         if(modSize > std::filesystem::file_size(backup_path)) {
             load_mod(backup_path, offset, arc);
@@ -200,8 +198,16 @@ int load_mod(const char* path, long offset, FILE* arc) {
         }
     }
     if(pathStr.find(backups_root) == std::string::npos) {
-        if(compSize > 0) backup(compSize, offset, arc);
-        else backup(modSize, offset, arc);
+        const char* modNameStart = path+strlen(mods_root);
+        u32 modNameSize = (u32)(strchr(modNameStart, '/') - modNameStart);
+        char* modName = new char[modNameSize];
+        strncpy(modName, modNameStart, modNameSize);
+        modName[modNameSize] = 0;
+        if(compSize > 0)
+            backup(modName, compSize, offset, arc);
+        else
+            backup(modName, modSize, offset, arc);
+        delete[] modName;
     }
     if(compBuf != nullptr) {
         u64 headerSize = ZSTD_frameHeaderSize(compBuf, compSize);
@@ -288,12 +294,12 @@ uint64_t hex_to_u64(char* str) {
 
 void add_mod_dir(const char* path) {
     mod_dirs = (char**) realloc(mod_dirs, ++num_mod_dirs * sizeof(const char*));
-    mod_dirs[num_mod_dirs-1] = (char*) malloc(FILENAME_SIZE * sizeof(char));
+    mod_dirs[num_mod_dirs-1] = new char[FS_MAX_PATH];
     strcpy(mod_dirs[num_mod_dirs-1], path);
 }
 
 void remove_last_mod_dir() {
-    free(mod_dirs[num_mod_dirs-1]);
+    delete[] mod_dirs[num_mod_dirs-1];
     num_mod_dirs--;
 }
 
@@ -332,28 +338,37 @@ void load_mods(FILE* f_arc) {
             log(CONSOLE_RED "\"%s\" was not found in the data.arc and no offset was in its name\n" CONSOLE_RESET "   Make sure the file name and path are correct.\n", arcFileName.c_str());
             continue;
         }
-
+        const char* mod_path_c_str = mod_path.c_str();
         if (mod_path.find("backups") != std::string::npos) {
-            load_mod(mod_path.c_str(), offset, f_arc);
+            load_mod(mod_path_c_str, offset, f_arc);
 
-            remove(mod_path.c_str());
+            remove(mod_path_c_str);
         } else {
-            if (installing == INSTALL) {
+            if (!uninstall) {
                 appletSetCpuBoostMode(ApmCpuBoostMode_Type1);
-                load_mod(mod_path.c_str(), offset, f_arc);
+                load_mod(mod_path_c_str, offset, f_arc);
                 appletSetCpuBoostMode(ApmCpuBoostMode_Disabled);
-                debug_log("installed \"%s\"\n", mod_path.c_str());
-            } else if (installing == UNINSTALL) {
-                char* backup_path = (char*) malloc(FILENAME_SIZE);
-                snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
-
+                debug_log("installed \"%s\"\n", mod_path_c_str);
+            }
+            else {
+                const char* modNameStart = mod_path_c_str+strlen(mods_root);
+                u32 modNameSize = (u32)(strchr(modNameStart, '/') - modNameStart);
+                char* modName = new char[modNameSize];
+                strncpy(modName, modNameStart, modNameSize);
+                modName[modNameSize] = 0;
+                int fileNameSize = snprintf(nullptr, 0, "%s%s/0x%lx.backup", backups_root, modName, offset) + 1;
+                char* backup_path = new char[fileNameSize];
+                snprintf(backup_path, fileNameSize, "%s%s/0x%lx.backup", backups_root, modName, offset);
                 if(std::filesystem::exists(backup_path)) {
                     load_mod(backup_path, offset, f_arc);
                     remove(backup_path);
                     debug_log("restored \"%s\"\n", backup_path);
                 }
-                else log(CONSOLE_RED "backup '0x%x' does not exist\n" CONSOLE_RESET, offset);
+                else
+                    log(CONSOLE_RED "backup '0x%x' does not exist\n" CONSOLE_RESET, offset);
+                std::string parentPath = std::filesystem::path(backup_path).parent_path();
                 free(backup_path);
+                rmdir(parentPath.c_str());
             }
         }
     }
@@ -416,9 +431,9 @@ void perform_installation() {
         log(CONSOLE_RED "Failed to get file handle to data.arc\n" CONSOLE_RESET);
         goto end;
     }
-    if (installing == INSTALL)
+    if(!uninstall)
         printf("\nInstalling mods...\n\n");
-    else if (installing == UNINSTALL)
+    else
         printf("\nUninstalling mods...\n\n");
     consoleUpdate(NULL);
     while (num_mod_dirs > 0) {
@@ -481,18 +496,15 @@ void modInstallerMainLoop(int kDown)
 
         bool start_install = false;
         deleteMod = false;
-        if(kHeld & KEY_L && kHeld & KEY_R && kDown & KEY_Y) {
-          deleteMod = true;
-          start_install = true;
-          installing = UNINSTALL;
+        if (kDown & KEY_Y) {
+            if(kHeld & KEY_L && kHeld & KEY_R)
+                deleteMod = true;
+            start_install = true;
+            uninstall = true;
         }
         else if (kDown & KEY_A) {
             start_install = true;
-            installing = INSTALL;
-        }
-        else if (kDown & KEY_Y) {
-            start_install = true;
-            installing = UNINSTALL;
+            uninstall = false;
         }
         bool found_dir = false;
         printf("\n");

@@ -175,7 +175,7 @@ bool fileExists (const std::string& name) {
     return (access(name.c_str(), F_OK) != -1);
 }
 
-int mkdirs (const std::string path, int mode) {
+int mkdirs (const std::string path, int mode = 0777) {
   int slashIDX = path.find_last_of("/");
   if(mkdir(path.c_str(), mode) == -1  && slashIDX != -1) {
     mkdirs(path.substr(0, slashIDX), mode);
