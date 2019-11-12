@@ -111,10 +111,10 @@ char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns po
   delete[] inBuff;
   return outBuff;
 }
-// Forward declaration for use in minBackup()
+// Forward declaration for use in backup()
 int load_mod(const char* path, long offset, FILE* arc);
 
-void minBackup(u64 modSize, u64 offset, FILE* arc) {
+void backup(u64 modSize, u64 offset, FILE* arc) {
 
     char* backup_path = new char[FILENAME_SIZE];
     snprintf(backup_path, FILENAME_SIZE, "%s0x%lx.backup", backups_root, offset);
@@ -136,7 +136,8 @@ void minBackup(u64 modSize, u64 offset, FILE* arc) {
 
     FILE* backup = fopen(backup_path, "wb");
     if (backup) fwrite(buf, sizeof(char), modSize, backup);
-    else log(CONSOLE_RED "Attempted to create backup file '%s', failed to get file handle\n" CONSOLE_RESET, backup_path);
+    else
+        log(CONSOLE_RED "Attempted to create backup file '%s', failed to get file handle\n" CONSOLE_RESET, backup_path);
     fclose(backup);
     delete[] buf;
     delete[] backup_path;
@@ -199,8 +200,8 @@ int load_mod(const char* path, long offset, FILE* arc) {
         }
     }
     if(pathStr.find(backups_root) == std::string::npos) {
-        if(compSize > 0) minBackup(compSize, offset, arc);
-        else minBackup(modSize, offset, arc);
+        if(compSize > 0) backup(compSize, offset, arc);
+        else backup(modSize, offset, arc);
     }
     if(compBuf != nullptr) {
         u64 headerSize = ZSTD_frameHeaderSize(compBuf, compSize);
