@@ -33,12 +33,21 @@ s64 mod_folder_index = 0;
 int smashVersion;
 ZSTD_CCtx* compContext = nullptr;
 std::list<s64> installIDXs;
+std::list<std::string> InstalledMods;
 
 const char* mods_root = "sdmc:/UltimateModManager/mods/";
 const char* backups_root = "sdmc:/UltimateModManager/backups/";
 std::string arc_path = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
 
 int regionIndex = getRegion();
+
+void updateInstalledList() {
+    InstalledMods.clear();
+    for(auto& dirEntry: std::filesystem::directory_iterator(backups_root)) {
+        if(dirEntry.is_directory())
+            InstalledMods.push_back(dirEntry.path().stem());
+    }
+}
 
 int seek_files(FILE* f, uint64_t offset, FILE* arc) {
     // Set file pointers to start of file and offset respectively
@@ -519,7 +528,8 @@ void modInstallerMainLoop(int kDown)
                     if (d_name == "." || d_name == "..")
                         continue;
                     std::string directory = "mods/" + d_name;
-
+                    if(std::find(InstalledMods.begin(), InstalledMods.end(), d_name) != InstalledMods.end())
+                        printf(CONSOLE_BLUE);
                     if (curr_folder_index == mod_folder_index) {
                         printf("%s> ", CONSOLE_GREEN);
                         if (start_install) {
@@ -589,6 +599,7 @@ void modInstallerMainLoop(int kDown)
             mod_dirs = NULL;
             num_mod_dirs = 0;
             installIDXs.clear();
+            updateInstalledList();
         }
     }
 

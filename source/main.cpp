@@ -55,6 +55,7 @@ int main(int argc, char **argv)
     remove(log_file);
     smashVersion = getSmashVersion();
     applicationMode = isApplicationMode();
+    updateInstalledList();
 
     while(appletMainLoop())
     {
