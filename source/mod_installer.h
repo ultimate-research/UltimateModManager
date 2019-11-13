@@ -52,17 +52,16 @@ void updateInstalledList() {
 int seek_files(FILE* f, uint64_t offset, FILE* arc) {
     // Set file pointers to start of file and offset respectively
     int ret = fseek(f, 0, SEEK_SET);
-    if (ret) {
+    if(ret) {
         log(CONSOLE_RED "Failed to seek file with errno %d\n" CONSOLE_RESET, ret);
         return ret;
     }
 
     ret = fseek(arc, offset, SEEK_SET);
-    if (ret) {
+    if(ret) {
         log(CONSOLE_RED "Failed to seek offset %lx from start of data.arc with errno %d\n" CONSOLE_RESET, offset, ret);
         return ret;
     }
-
     return 0;
 }
 
@@ -97,8 +96,7 @@ char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns po
   ZSTD_CCtx_setParameter(compContext, ZSTD_c_contentSizeFlag, 1);
   ZSTD_CCtx_setParameter(compContext, ZSTD_c_checksumFlag, 0);
   ZSTD_CCtx_setParameter(compContext, ZSTD_c_dictIDFlag, 1);
-  do
-  {
+  do {
     ZSTD_CCtx_setParameter(compContext, ZSTD_c_compressionLevel, compLvl++);
     dataSize = ZSTD_compress2(compContext, outBuff, bufSize, inBuff, inSize);
     if(compLvl==10) compLvl = 17;  // skip arbitrary amount of levels for speed.
@@ -111,7 +109,7 @@ char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns po
         outBuff = nullptr;
     }
   }
-  while ((dataSize > compSize || ZSTD_isError(dataSize) || !paddable(compSize - dataSize)) && compLvl <= ZSTD_maxCLevel());
+  while((dataSize > compSize || ZSTD_isError(dataSize) || !paddable(compSize - dataSize)) && compLvl <= ZSTD_maxCLevel());
 
   delete[] inBuff;
   return outBuff;
@@ -126,14 +124,14 @@ void backup(char* modName, u64 modSize, u64 offset, FILE* arc) {
     std::string parentPath = std::filesystem::path(backup_path).parent_path();
     if(!std::filesystem::exists(parentPath))
         mkdir(parentPath.c_str(), 0777);
-    if (fileExists(std::string(backup_path))) {
+    if(fileExists(std::string(backup_path))) {
         if(modSize > std::filesystem::file_size(backup_path)) {
             load_mod(backup_path, offset, arc);
         }
         else {
-          debug_log("Backup file 0x%lx.backup already exists\n", offset);
-          delete[] backup_path;
-          return;
+            debug_log("Backup file 0x%lx.backup already exists\n", offset);
+            delete[] backup_path;
+            return;
         }
     }
 
@@ -142,7 +140,7 @@ void backup(char* modName, u64 modSize, u64 offset, FILE* arc) {
     fread(buf, sizeof(char), modSize, arc);
 
     FILE* backup = fopen(backup_path, "wb");
-    if (backup) fwrite(buf, sizeof(char), modSize, backup);
+    if(backup) fwrite(buf, sizeof(char), modSize, backup);
     else
         log(CONSOLE_RED "Attempted to create backup file '%s', failed to get file handle\n" CONSOLE_RESET, backup_path);
     fclose(backup);
@@ -193,7 +191,7 @@ int load_mod(const char* path, long offset, FILE* arc) {
             if(compSize != decompSize && !ZSTDFileIsFrame(path)) {
                 if(compSize != 0) {
                     compBuf = compressFile(path, compSize, realCompSize);
-                    if (compBuf == nullptr)
+                    if(compBuf == nullptr)
                     {
                         log(CONSOLE_RED "Compression failed on %s\n" CONSOLE_RESET, path);
                         return -1;
@@ -225,9 +223,9 @@ int load_mod(const char* path, long offset, FILE* arc) {
         fwrite(compBuf, sizeof(char), headerSize, arc);
         char* zBuff = new char[paddingSize];
         memset(zBuff, 0, paddingSize);
-        if (paddingSize % 3 != 0) {
-            if (paddingSize >= 4 && paddingSize % 3 == 1) zBuff[paddingSize-4] = 2;
-            else if (paddingSize >= 8 && paddingSize % 3 == 2) {
+        if(paddingSize % 3 != 0) {
+            if(paddingSize >= 4 && paddingSize % 3 == 1) zBuff[paddingSize-4] = 2;
+            else if(paddingSize >= 8 && paddingSize % 3 == 2) {
                 zBuff[paddingSize-4] = 2;
                 zBuff[paddingSize-8] = 2;
             }
@@ -241,10 +239,9 @@ int load_mod(const char* path, long offset, FILE* arc) {
         FILE* f = fopen(path, "rb");
         if(f) {
             int ret = seek_files(f, offset, arc);
-            if (!ret) {
+            if(!ret) {
                 void* copy_buffer = malloc(FILE_READ_SIZE);
                 uint64_t total_size = 0;
-
                 // Copy in up to FILE_READ_SIZE byte chunks
                 size_t size;
                 do {
@@ -256,22 +253,20 @@ int load_mod(const char* path, long offset, FILE* arc) {
 
                 free(copy_buffer);
             }
-
             fclose(f);
-        } else {
+        }
+        else {
             log(CONSOLE_RED "Found file '%s', failed to get file handle\n" CONSOLE_RESET, path);
             return -1;
         }
     }
-
     return 0;
 }
 
 #define UC(c) ((unsigned char)c)
 
-char _isxdigit (unsigned char c)
-{
-    if (( c >= UC('0') && c <= UC('9') ) ||
+char _isxdigit (unsigned char c) {
+    if(( c >= UC('0') && c <= UC('9') ) ||
         ( c >= UC('a') && c <= UC('f') ) ||
         ( c >= UC('A') && c <= UC('F') ))
         return 1;
@@ -279,11 +274,11 @@ char _isxdigit (unsigned char c)
 }
 
 unsigned char xtoc(char x) {
-    if (x >= UC('0') && x <= UC('9'))
+    if(x >= UC('0') && x <= UC('9'))
         return x - UC('0');
-    else if (x >= UC('a') && x <= UC('f'))
+    else if(x >= UC('a') && x <= UC('f'))
         return (x - UC('a')) + 0xa;
-    else if (x >= UC('A') && x <= UC('F'))
+    else if(x >= UC('A') && x <= UC('F'))
         return (x - UC('A')) + 0xA;
     return -1;
 }
@@ -320,7 +315,7 @@ void load_mods(FILE* f_arc) {
         consoleUpdate(NULL);
         std::string mod_path = mod_files[i].mod_path;
         std::string rel_mod_dir;
-        if (mod_path.find("backups") != std::string::npos)
+        if(mod_path.find("backups") != std::string::npos)
             rel_mod_dir = mod_path.substr(strlen(backups_root));
         else
             rel_mod_dir = mod_path.substr(strlen(mods_root));
@@ -343,17 +338,18 @@ void load_mods(FILE* f_arc) {
             }
         }
 
-        if (offset == 0) {
+        if(offset == 0) {
             log(CONSOLE_RED "\"%s\" was not found in the data.arc and no offset was in its name\n" CONSOLE_RESET "   Make sure the file name and path are correct.\n", arcFileName.c_str());
             continue;
         }
         const char* mod_path_c_str = mod_path.c_str();
-        if (mod_path.find("backups") != std::string::npos) {
+        if(mod_path.find("backups") != std::string::npos) {
             load_mod(mod_path_c_str, offset, f_arc);
 
             remove(mod_path_c_str);
-        } else {
-            if (!uninstall) {
+        }
+        else {
+            if(!uninstall) {
                 appletSetCpuBoostMode(ApmCpuBoostMode_Type1);
                 load_mod(mod_path_c_str, offset, f_arc);
                 appletSetCpuBoostMode(ApmCpuBoostMode_Disabled);
@@ -382,7 +378,7 @@ void load_mods(FILE* f_arc) {
         }
     }
     print_progress(num_mod_files, num_mod_files);
-    if (num_mod_files == 0)
+    if(num_mod_files == 0)
         printf("Note: " CONSOLE_YELLOW "Nothing installed\n" CONSOLE_RESET);
     consoleUpdate(NULL);
     mod_files.clear();
@@ -390,45 +386,44 @@ void load_mods(FILE* f_arc) {
 
 int enumerate_mod_files(FILE* f_arc) {
     std::string mod_dir = mod_dirs[num_mod_dirs-1];
-
     remove_last_mod_dir();
-
     DIR *d;
     struct dirent *dir;
 
     std::string abs_mod_dir = std::string(manager_root) + mod_dir;
     d = opendir(abs_mod_dir.c_str());
-    if (d)
+    if(d)
     {
-        while ((dir = readdir(d)) != NULL)
+        while((dir = readdir(d)) != NULL)
         {
             if(dir->d_type == DT_DIR) {
-                if (strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0)
+                if(strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0)
                     continue;
                 std::string new_mod_dir = mod_dir + "/" + dir->d_name;
                 add_mod_dir(new_mod_dir.c_str());
-            } else {
+            }
+            else {
                 long offset = hex_to_u64(dir->d_name);
-                if (mod_dir == "backups") {
+                if(mod_dir == "backups") {
                     std::string backup_file = std::string(backups_root) + std::string(dir->d_name);
                     mod_files.push_back(ModFile{backup_file, offset});
-                } else {
+                }
+                else {
                     std::string mod_file = std::string(manager_root) + mod_dir + "/" + dir->d_name;
                     mod_files.push_back(ModFile{mod_file, offset});
                 }
             }
         }
         closedir(d);
-    } else {
+    }
+    else {
         log(CONSOLE_RED "Failed to open mod directory '%s'\n" CONSOLE_RESET, abs_mod_dir.c_str());
     }
-
     return 0;
 }
 
 void perform_installation() {
     std::string rootModDir = std::string(manager_root) + mod_dirs[num_mod_dirs-1];
-
     FILE* f_arc;
     if(!std::filesystem::exists(arc_path) || std::filesystem::is_directory(std::filesystem::status(arc_path))) {
       log(CONSOLE_RED "\nNo data.arc found!\n" CONSOLE_RESET
@@ -436,7 +431,7 @@ void perform_installation() {
       goto end;
     }
     f_arc = fopen(arc_path.c_str(), "r+b");
-    if(!f_arc){
+    if(!f_arc) {
         log(CONSOLE_RED "Failed to get file handle to data.arc\n" CONSOLE_RESET);
         goto end;
     }
@@ -445,12 +440,10 @@ void perform_installation() {
     else
         printf("\nUninstalling mods...\n\n");
     consoleUpdate(NULL);
-    while (num_mod_dirs > 0) {
+    while(num_mod_dirs > 0) {
         enumerate_mod_files(f_arc);
     }
-
     free(mod_dirs);
-
     load_mods(f_arc);
     if(pendingTableWrite) {
         printf("Writing file table\n");
@@ -459,15 +452,15 @@ void perform_installation() {
         pendingTableWrite = false;
     }
     fclose(f_arc);
-    if (deleteMod) {
+    if(deleteMod) {
       printf("Deleting mod files\n");
       fsdevDeleteDirectoryRecursively(rootModDir.c_str());
     }
 
 end:
-    if (!errorLogs.empty()) {
+    if(!errorLogs.empty()) {
         printf("Error Logs:\n");
-        for (std::string line : errorLogs) {
+        for(std::string line : errorLogs) {
             printf(line.c_str());
         }
         errorLogs.clear();
@@ -481,13 +474,13 @@ end:
 void modInstallerMainLoop(int kDown)
 {
     u64 kHeld = hidKeysHeld(CONTROLLER_P1_AUTO);
-    if (!installation_finish) {
+    if(!installation_finish) {
         consoleClear();
-        if (kHeld & KEY_RSTICK_DOWN) {
+        if(kHeld & KEY_RSTICK_DOWN) {
             svcSleepThread(7e+7);
             mod_folder_index++;
         }
-        if (kHeld & KEY_RSTICK_UP) {
+        if(kHeld & KEY_RSTICK_UP) {
             svcSleepThread(7e+7);
             mod_folder_index--;
         }
@@ -498,48 +491,47 @@ void modInstallerMainLoop(int kDown)
             else
                 installIDXs.erase(it);
         }
-        if (kDown & KEY_DDOWN || kDown & KEY_LSTICK_DOWN)
+        if(kDown & KEY_DDOWN || kDown & KEY_LSTICK_DOWN)
             mod_folder_index++;
-        else if (kDown & KEY_DUP || kDown & KEY_LSTICK_UP)
+        else if(kDown & KEY_DUP || kDown & KEY_LSTICK_UP)
             mod_folder_index--;
 
         bool start_install = false;
         deleteMod = false;
-        if (kDown & KEY_Y) {
+        if(kDown & KEY_Y) {
             if(kHeld & KEY_L && kHeld & KEY_R)
                 deleteMod = true;
             start_install = true;
             uninstall = true;
         }
-        else if (kDown & KEY_A) {
+        else if(kDown & KEY_A) {
             start_install = true;
             uninstall = false;
         }
         bool found_dir = false;
         printf("\n");
-
         DIR* d = opendir(mods_root);
         struct dirent *dir;
-        if (d) {
+        if(d) {
             s64 curr_folder_index = 0;
-            while ((dir = readdir(d)) != NULL) {
+            while((dir = readdir(d)) != NULL) {
                 std::string d_name = std::string(dir->d_name);
                 if(dir->d_type == DT_DIR) {
-                    if (d_name == "." || d_name == "..")
+                    if(d_name == "." || d_name == "..")
                         continue;
                     std::string directory = "mods/" + d_name;
                     if(std::find(InstalledMods.begin(), InstalledMods.end(), d_name) != InstalledMods.end())
                         printf(CONSOLE_BLUE);
-                    if (curr_folder_index == mod_folder_index) {
+                    if(curr_folder_index == mod_folder_index) {
                         printf("%s> ", CONSOLE_GREEN);
-                        if (start_install) {
+                        if(start_install) {
                             found_dir = true;
                             add_mod_dir(directory.c_str());
                         }
                     }
                     else if(std::find(installIDXs.begin(), installIDXs.end(), curr_folder_index) != installIDXs.end()) {
                         printf(CONSOLE_CYAN);
-                        if (start_install) {
+                        if(start_install) {
                             add_mod_dir(directory.c_str());
                         }
                     }
@@ -550,15 +542,15 @@ void modInstallerMainLoop(int kDown)
                 }
             }
 
-            if (mod_folder_index < 0)
+            if(mod_folder_index < 0)
                 mod_folder_index = curr_folder_index;
 
-            if (mod_folder_index > curr_folder_index)
+            if(mod_folder_index > curr_folder_index)
                 mod_folder_index = 0;
 
-            if (mod_folder_index == curr_folder_index) {
+            if(mod_folder_index == curr_folder_index) {
                 printf(CONSOLE_GREEN "> ");
-                if (start_install) {
+                if(start_install) {
                     found_dir = true;
                     add_mod_dir("backups");
                     if(arcReader == nullptr) {
@@ -574,7 +566,7 @@ void modInstallerMainLoop(int kDown)
             if(curr_folder_index < 42 || curr_folder_index <= mod_folder_index)
                 printf(CONSOLE_YELLOW "Restore backups and file table\n" CONSOLE_RESET);
 
-            if (mod_folder_index == curr_folder_index)
+            if(mod_folder_index == curr_folder_index)
                 printf(CONSOLE_RESET);
 
             closedir(d);
@@ -586,12 +578,13 @@ void modInstallerMainLoop(int kDown)
                    GREEN "Y" RESET "=Uninstall " GREEN "L+R+Y" RESET "=Delete "
                    GREEN "R-Stick" RESET "=Scroll " GREEN "ZR" RESET "=Multi-select "
                    GREEN "B" RESET "=Main Menu" CONSOLE_ESC(u));
-        } else {
+        }
+        else {
             log(CONSOLE_RED "%s folder not found\n\n" CONSOLE_RESET, mods_root);
         }
 
         consoleUpdate(NULL);
-        if (start_install && found_dir) {
+        if(start_install && found_dir) {
             consoleClear();
             mkdir(backups_root, 0777);
             perform_installation();
@@ -603,10 +596,10 @@ void modInstallerMainLoop(int kDown)
         }
     }
 
-    if (kDown & KEY_B) {
-        if (installation_finish) {
-          installation_finish = false;
-          consoleClear();
+    if(kDown & KEY_B) {
+        if(installation_finish) {
+            installation_finish = false;
+            consoleClear();
         }
         else {
           if(arcReader != nullptr) {
@@ -614,8 +607,8 @@ void modInstallerMainLoop(int kDown)
               arcReader = nullptr;
           }
           if(compContext != nullptr) {
-            ZSTD_freeCCtx(compContext);
-            compContext = nullptr;
+              ZSTD_freeCCtx(compContext);
+              compContext = nullptr;
           }
           menu = MAIN_MENU;
           printMainMenu();
