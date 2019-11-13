@@ -315,7 +315,8 @@ void load_mods(FILE* f_arc) {
         consoleUpdate(NULL);
         std::string mod_path = mod_files[i].mod_path;
         std::string rel_mod_dir;
-        if(mod_path.find("backups") != std::string::npos)
+        bool backupsFolder = mod_path.find(backups_root) != std::string::npos;
+        if(backupsFolder)
             rel_mod_dir = mod_path.substr(strlen(backups_root));
         else
             rel_mod_dir = mod_path.substr(strlen(mods_root));
@@ -343,10 +344,11 @@ void load_mods(FILE* f_arc) {
             continue;
         }
         const char* mod_path_c_str = mod_path.c_str();
-        if(mod_path.find("backups") != std::string::npos) {
+        if(backupsFolder) {
             load_mod(mod_path_c_str, offset, f_arc);
-
             remove(mod_path_c_str);
+            std::string parentPath = std::filesystem::path(mod_path).parent_path();
+            rmdir(parentPath.c_str());
         }
         else {
             if(!uninstall) {
