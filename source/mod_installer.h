@@ -124,14 +124,27 @@ void backup(char* modName, u64 modSize, u64 offset, FILE* arc) {
     std::string parentPath = std::filesystem::path(backup_path).parent_path();
     if(!std::filesystem::exists(parentPath))
         mkdir(parentPath.c_str(), 0777);
-    if(fileExists(std::string(backup_path))) {
-        if(modSize > std::filesystem::file_size(backup_path)) {
-            load_mod(backup_path, offset, arc);
+    {
+        bool duplicateBackup = false;
+        std::filesystem::path dupeDirEntry;
+        for(auto& dirEntry: std::filesystem::recursive_directory_iterator(backups_root)) {
+            if(dirEntry.is_regular_file() && dirEntry.path().filename() == std::filesystem::path(backup_path).filename()) {
+                dupeDirEntry = dirEntry.path();
+                duplicateBackup = true;
+                break;
+            }
         }
-        else {
-            debug_log("Backup file 0x%lx.backup already exists\n", offset);
-            delete[] backup_path;
-            return;
+        if(duplicateBackup) {
+            if(modSize > std::filesystem::file_size(dupeDirEntry)) {
+                load_mod(dupeDirEntry.c_str(), offset, arc);
+            }
+            else {
+                debug_log("Backup file 0x%lx.backup already exists\n", offset);
+                std::filesystem::rename(dupeDirEntry, backup_path);
+                rmdir(dupeDirEntry.parent_path().c_str());
+                delete[] backup_path;
+                return;
+            }
         }
     }
 
