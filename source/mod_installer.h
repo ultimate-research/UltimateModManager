@@ -45,7 +45,7 @@ void updateInstalledList() {
     InstalledMods.clear();
     for(auto& dirEntry: std::filesystem::directory_iterator(backups_root)) {
         if(dirEntry.is_directory())
-            InstalledMods.push_back(dirEntry.path().stem());
+            InstalledMods.push_back(dirEntry.path().filename());
     }
 }
 
