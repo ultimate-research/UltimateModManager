@@ -63,6 +63,13 @@ void debug_log(const char* format, ...) {
     }
 }
 
+std::string strTolower(std::string string) {
+    for(int i = 0; string[i] != 0; i++) {
+        string[i] = tolower(string[i]);
+    }
+    return string;
+}
+
 bool isApplicationMode() {
     AppletType currAppType = appletGetAppletType();
     return (currAppType == AppletType_Application || currAppType == AppletType_SystemApplication);
