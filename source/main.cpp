@@ -45,6 +45,7 @@ int main(int argc, char **argv)
     console_set_status("\n" GREEN "Mod Installer" RESET);
     if(!std::filesystem::exists(mods_root))
         mkdirs(mods_root, 0777);
+    mkdir(backups_root, 0777);
     if(std::filesystem::is_directory(std::filesystem::status(arc_path)) && !std::filesystem::is_empty(arc_path))
         fsdevSetArchiveBit(arc_path.c_str());
     if(!std::filesystem::exists(outPath) || std::filesystem::is_empty(arc_path))

@@ -601,7 +601,6 @@ void modInstallerMainLoop(int kDown)
         consoleUpdate(NULL);
         if(start_install && found_dir) {
             consoleClear();
-            mkdir(backups_root, 0777);
             perform_installation();
             installation_finish = true;
             mod_dirs = NULL;
