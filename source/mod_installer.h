@@ -222,7 +222,7 @@ int load_mod(const char* path, long offset, FILE* arc) {
         u32 modNameSize = (u32)(strchr(modNameStart, '/') - modNameStart);
         char* modName = new char[modNameSize];
         strncpy(modName, modNameStart, modNameSize);
-        modName[modNameSize] = 0;
+        modName[modNameSize-1] = 0;
         if(compSize > 0)
             backup(modName, compSize, offset, arc);
         else
@@ -375,7 +375,7 @@ void load_mods(FILE* f_arc) {
                 u32 modNameSize = (u32)(strchr(modNameStart, '/') - modNameStart);
                 char* modName = new char[modNameSize];
                 strncpy(modName, modNameStart, modNameSize);
-                modName[modNameSize] = 0;
+                modName[modNameSize-1] = 0;
                 int fileNameSize = snprintf(nullptr, 0, "%s%s/0x%lx.backup", backups_root, modName, offset) + 1;
                 char* backup_path = new char[fileNameSize];
                 snprintf(backup_path, fileNameSize, "%s%s/0x%lx.backup", backups_root, modName, offset);
