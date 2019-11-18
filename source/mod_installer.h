@@ -220,9 +220,9 @@ int load_mod(const char* path, long offset, FILE* arc) {
     if(pathStr.find(backups_root) == std::string::npos) {
         const char* modNameStart = path+strlen(mods_root);
         u32 modNameSize = (u32)(strchr(modNameStart, '/') - modNameStart);
-        char* modName = new char[modNameSize];
+        char* modName = new char[modNameSize+1];
         strncpy(modName, modNameStart, modNameSize);
-        modName[modNameSize-1] = 0;
+        modName[modNameSize] = 0;
         if(compSize > 0)
             backup(modName, compSize, offset, arc);
         else
@@ -373,9 +373,9 @@ void load_mods(FILE* f_arc) {
             else {
                 const char* modNameStart = mod_path_c_str+strlen(mods_root);
                 u32 modNameSize = (u32)(strchr(modNameStart, '/') - modNameStart);
-                char* modName = new char[modNameSize];
+                char* modName = new char[modNameSize+1];
                 strncpy(modName, modNameStart, modNameSize);
-                modName[modNameSize-1] = 0;
+                modName[modNameSize] = 0;
                 int fileNameSize = snprintf(nullptr, 0, "%s%s/0x%lx.backup", backups_root, modName, offset) + 1;
                 char* backup_path = new char[fileNameSize];
                 snprintf(backup_path, fileNameSize, "%s%s/0x%lx.backup", backups_root, modName, offset);
