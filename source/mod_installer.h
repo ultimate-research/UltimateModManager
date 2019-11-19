@@ -418,6 +418,8 @@ int enumerate_mod_files(FILE* f_arc) {
                 add_mod_dir(new_mod_dir.c_str());
             }
             else {
+                if(dir->d_name[0] == '.')
+                    continue;
                 long offset = hex_to_u64(dir->d_name);
                 if(mod_dir == "backups") {
                     std::string backup_file = std::string(backups_root) + std::string(dir->d_name);
