@@ -153,7 +153,8 @@ void backup(char* modName, u64 modSize, u64 offset, FILE* arc) {
     fread(buf, sizeof(char), modSize, arc);
 
     FILE* backup = fopen(backup_path, "wb");
-    if(backup) fwrite(buf, sizeof(char), modSize, backup);
+    if(backup)
+        fwrite(buf, sizeof(char), modSize, backup);
     else
         log(CONSOLE_RED "Attempted to create backup file '%s', failed to get file handle\n" CONSOLE_RESET, backup_path);
     fclose(backup);
