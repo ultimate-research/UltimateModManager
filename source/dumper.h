@@ -159,28 +159,34 @@ void copy(const char* from, const char* to, bool exfat = false)
 }
 
 void dumperMainLoop(int kDown) {
+    u64 kHeld = hidKeysHeld(CONTROLLER_P1_AUTO);
     if (kDown & KEY_X)
     {
-        if(std::filesystem::exists(outPath))
-        {
-          printf("\nBeginning hash generation...\n" CONSOLE_ESC(s));
-          consoleUpdate(NULL);
-          unsigned char out[MD5_DIGEST_LENGTH];
-          u64 startTime = std::time(0);
-          // Should I block home button here too?
-          appletSetMediaPlaybackState(true);
-          md5HashFromFile(outPath, out);
-          appletSetMediaPlaybackState(false);
-          u64 endTime = std::time(0);
-          printf("\nMD5:");
-          for(int i = 0; i < MD5_DIGEST_LENGTH; i++) printf("%02x", out[i]);
-          printf("\nHashing took %.2f minutes", (float)(endTime - startTime)/60);
-          consoleUpdate(NULL);
-          shortVibratePattern();
+        if(kHeld & KEY_R) {
+            if(std::filesystem::exists(outPath))
+            {
+              printf("\nBeginning hash generation...\n" CONSOLE_ESC(s));
+              consoleUpdate(NULL);
+              unsigned char out[MD5_DIGEST_LENGTH];
+              u64 startTime = std::time(0);
+              // Should I block home button here too?
+              appletSetMediaPlaybackState(true);
+              md5HashFromFile(outPath, out);
+              appletSetMediaPlaybackState(false);
+              u64 endTime = std::time(0);
+              printf("\nMD5:");
+              for(int i = 0; i < MD5_DIGEST_LENGTH; i++) printf("%02x", out[i]);
+              printf("\nHashing took %.2f minutes", (float)(endTime - startTime)/60);
+              consoleUpdate(NULL);
+              shortVibratePattern();
+            }
+            else
+            {
+              printf(CONSOLE_RED "\nNo data.arc file found on the SD card." CONSOLE_RESET);
+            }
         }
-        else
-        {
-          printf(CONSOLE_RED "\nNo data.arc file found on the SD card." CONSOLE_RESET);
+        else {
+            appletRequestLaunchApplication(smashTID, NULL);
         }
     }
     if (kDown & KEY_Y && !dump_done) exfat = true;
@@ -198,7 +204,7 @@ void dumperMainLoop(int kDown) {
 
         dump_done = true;  // So you don't accidentally dump twice
         printf("\nCompleted in %.2f minutes.", (float)(endTime - startTime)/60);
-        printf("\nOptional: Press 'X' to generate an MD5 hash of the file");
+        printf("\nPress 'X' to verify the dump by launching smash");
         printf("\nPress 'B' to return to the main menu\n");
         consoleUpdate(NULL);
         shortVibratePattern();
