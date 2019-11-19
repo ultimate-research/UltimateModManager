@@ -24,7 +24,11 @@ char** mod_dirs = NULL;
 size_t num_mod_dirs = 0;
 typedef struct ModFile {
     std::string mod_path;
-    long offset;
+    s64 offset;
+
+    ModFile(std::string mod_path, s64 offset)
+        : mod_path(std::move(mod_path)), offset(offset)
+    {}
 } ModFile;
 std::vector<ModFile> mod_files;
 
@@ -335,7 +339,7 @@ void load_mods(FILE* f_arc) {
         else
             rel_mod_dir = mod_path.substr(strlen(mods_root));
         std::string arcFileName = rel_mod_dir.substr(rel_mod_dir.find('/')+1);
-        long offset = mod_files[i].offset;
+        s64 offset = mod_files[i].offset;
         if(offset == 0) {
             if(arcReader == nullptr) {
                 consoleUpdate(NULL);
@@ -421,14 +425,14 @@ int enumerate_mod_files(FILE* f_arc) {
             else {
                 if(dir->d_name[0] == '.')
                     continue;
-                long offset = hex_to_u64(dir->d_name);
+                s64 offset = hex_to_u64(dir->d_name);
                 if(mod_dir == "backups") {
                     std::string backup_file = std::string(backups_root) + std::string(dir->d_name);
-                    mod_files.push_back(ModFile{backup_file, offset});
+                    mod_files.emplace_back(backup_file, offset);
                 }
                 else {
                     std::string mod_file = std::string(manager_root) + mod_dir + "/" + dir->d_name;
-                    mod_files.push_back(ModFile{mod_file, offset});
+                    mod_files.emplace_back(mod_file, offset);
                 }
             }
         }

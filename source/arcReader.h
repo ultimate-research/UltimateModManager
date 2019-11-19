@@ -461,7 +461,7 @@ class ArcReader {
         "+zh_tw"
     };
 
-    void GetFileInformation(std::string arcFileName, long& offset, u32& compSize, u32& decompSize, bool& regional, int regionIndex = 1) {
+    void GetFileInformation(std::string arcFileName, s64& offset, u32& compSize, u32& decompSize, bool& regional, int regionIndex = 1) {
         checkRegionalSuffix(arcFileName, regionIndex);
 
         u32 path_hash = crc32Calculate(strTolower(arcFileName).c_str(), arcFileName.size());
@@ -508,7 +508,7 @@ class ArcReader {
             GetFileInformation(pathToFileInfo[path_hash], offset, compSize, decompSize, regionIndex);
     }
 
-    void GetFileInformation(_sFileInformationV2 fileinfo, long& offset, u32& compSize, u32& decompSize, int regionIndex) {
+    void GetFileInformation(_sFileInformationV2 fileinfo, s64& offset, u32& compSize, u32& decompSize, int regionIndex) {
         auto fileIndex = fileInfoIndex[fileinfo.IndexIndex];
 
         //redirect
