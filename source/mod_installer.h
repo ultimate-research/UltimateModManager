@@ -84,7 +84,7 @@ bool paddable(u64 padSize) {
 
 char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns pointer to heap
 {
-  u64 bufSize = compSize+0x30;
+  u64 bufSize = compSize+0x100;
   char* outBuff = new char[bufSize];
   FILE* inFile = fopen(path, "rb");
   fseek(inFile, 0, SEEK_END);
