@@ -48,6 +48,7 @@ const std::map<std::string, int> regionMap {
 
 const char* log_file = "sdmc:/UltimateModManager/log.txt";
 const bool debug = std::filesystem::exists("sdmc:/UltimateModManager/debug.flag");
+void debug_log(const char*, ...) __attribute__((format(printf, 1, 2)));
 void debug_log(const char* format, ...) {
     if(debug) {
         char buf[10];
@@ -131,6 +132,7 @@ void print_progress(size_t progress, size_t max) {
 }
 
 std::vector<std::string> errorLogs;
+void log(const char*, ...) __attribute__((format(printf, 1, 2)));
 void log(const char* format, ...) {
     va_list args;
     va_start(args, format);
