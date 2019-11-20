@@ -82,8 +82,23 @@ bool paddable(u64 padSize) {
     return !(padSize == 1 || padSize == 2 || padSize == 5);
 }
 
+void setZSTDCustomLvl(ZSTD_CCtx* cctx, int level) {
+    if(level <= ZSTD_maxCLevel())
+        ZSTD_CCtx_setParameter(compContext, ZSTD_c_compressionLevel, level);
+    else if(level == ZSTD_maxCLevel() + 1) {
+        ZSTD_CCtx_setParameter(compContext, ZSTD_c_compressionLevel, 22);
+        ZSTD_CCtx_setParameter(compContext, ZSTD_c_strategy, ZSTD_btopt);
+    }
+    else if(level == ZSTD_maxCLevel() + 2) {
+        ZSTD_CCtx_setParameter(compContext, ZSTD_c_compressionLevel, 22);
+        ZSTD_CCtx_setParameter(compContext, ZSTD_c_minMatch, 4);
+        ZSTD_CCtx_setParameter(compContext, ZSTD_c_strategy, ZSTD_greedy);
+    }
+}
+
 char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns pointer to heap
 {
+  const int ZSTDCustom_maxCLevel = ZSTD_maxCLevel() + 2;
   u64 bufSize = compSize+0x100;
   char* outBuff = new char[bufSize];
   FILE* inFile = fopen(path, "rb");
@@ -94,26 +109,30 @@ char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns po
   fread(inBuff, sizeof(char), inSize, inFile);
   fclose(inFile);
   int compLvl = 3;
-  int bytesAway = compSize;
+  u64 bytesAway = ULONG_MAX;
   if(compContext == nullptr) compContext = ZSTD_createCCtx();
    // Minimize header size
   ZSTD_CCtx_setParameter(compContext, ZSTD_c_contentSizeFlag, 1);
   ZSTD_CCtx_setParameter(compContext, ZSTD_c_checksumFlag, 0);
   ZSTD_CCtx_setParameter(compContext, ZSTD_c_dictIDFlag, 1);
   do {
-    ZSTD_CCtx_setParameter(compContext, ZSTD_c_compressionLevel, compLvl++);
+    setZSTDCustomLvl(compContext, compLvl++);
     dataSize = ZSTD_compress2(compContext, outBuff, bufSize, inBuff, inSize);
-    if(compLvl==10) compLvl = 17;  // skip arbitrary amount of levels for speed.
-    if(!ZSTD_isError(dataSize) && dataSize - compSize < (u64)bytesAway)
-        bytesAway = dataSize - compSize;
-    if(compLvl > ZSTD_maxCLevel()) {
-        if((u64)bytesAway != compSize)
-            log("%d bytes too large ", bytesAway);
-        delete[] outBuff;
-        outBuff = nullptr;
+    if(!ZSTD_isError(dataSize) && dataSize > compSize) {
+        debug_log("Compressed \"%s\" to %lu bytes, %lu bytes away from goal, at level %d.\n", path, dataSize, dataSize - compSize, compLvl-1);
+        if(dataSize - compSize < bytesAway)
+            bytesAway = dataSize - compSize;
     }
+    if(compLvl==10) compLvl = 17;  // skip arbitrary amount of levels for speed.
   }
-  while((dataSize > compSize || ZSTD_isError(dataSize) || !paddable(compSize - dataSize)) && compLvl <= ZSTD_maxCLevel());
+  while((dataSize > compSize || ZSTD_isError(dataSize) || !paddable(compSize - dataSize)) && compLvl <= ZSTDCustom_maxCLevel);
+
+  if(compLvl > ZSTDCustom_maxCLevel) {
+      if(bytesAway != ULONG_MAX)
+          log("%lu bytes too large ", bytesAway);
+      delete[] outBuff;
+      outBuff = nullptr;
+  }
 
   delete[] inBuff;
   return outBuff;
