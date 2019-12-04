@@ -472,11 +472,17 @@ void modInstallerMainLoop(int kDown)
     if(!installation_finish) {
         consoleClear();
         if(kHeld & KEY_RSTICK_DOWN) {
-            svcSleepThread(7e+7);
+            if(kHeld & KEY_RSTICK)
+                svcSleepThread(7e+4);
+            else
+                svcSleepThread(7e+7);
             mod_folder_index++;
         }
         if(kHeld & KEY_RSTICK_UP) {
-            svcSleepThread(7e+7);
+            if(kHeld & KEY_RSTICK)
+                svcSleepThread(7e+4);
+            else
+                svcSleepThread(7e+7);
             mod_folder_index--;
         }
         if(kDown & KEY_ZR) {
