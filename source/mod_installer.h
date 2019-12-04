@@ -402,10 +402,16 @@ int enumerate_mod_files(FILE* f_arc) {
     auto fsit = std::filesystem::recursive_directory_iterator(std::filesystem::path(mod_dir), ec);
     if(!ec) {
         for(auto& dirEntry: fsit) {
-            if(dirEntry.is_regular_file()) {
-                modpath = dirEntry.path();
-                offset = hex_to_u64(modpath.filename().c_str());
-                mod_files.emplace_back(modpath, offset);
+            modpath = dirEntry.path();
+            if(modpath.string()[0] == '.') {
+                  if(dirEntry.is_directory())
+                      fsit.disable_recursion_pending();
+            }
+            else {
+                if(dirEntry.is_regular_file()) {
+                    offset = hex_to_u64(modpath.filename().c_str());
+                    mod_files.emplace_back(modpath, offset);
+                }
             }
         }
     }
