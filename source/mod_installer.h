@@ -19,9 +19,6 @@ ArcReader* arcReader = nullptr;
 bool uninstall = false;
 bool deleteMod = false;
 bool pendingTableWrite = false;
-
-char** mod_dirs = NULL;
-size_t num_mod_dirs = 0;
 typedef struct ModFile {
     std::string mod_path;
     s64 offset;
@@ -38,6 +35,7 @@ int smashVersion;
 ZSTD_CCtx* compContext = nullptr;
 std::list<s64> installIDXs;
 std::list<std::string> InstalledMods;
+std::list<std::string> modDirList;
 
 const char* mods_root = "sdmc:/UltimateModManager/mods/";
 const char* backups_root = "sdmc:/UltimateModManager/backups/";
@@ -51,22 +49,6 @@ void updateInstalledList() {
         if(dirEntry.is_directory())
             InstalledMods.push_back(dirEntry.path().filename());
     }
-}
-
-int seek_files(FILE* f, uint64_t offset, FILE* arc) {
-    // Set file pointers to start of file and offset respectively
-    int ret = fseek(f, 0, SEEK_SET);
-    if(ret) {
-        log(CONSOLE_RED "Failed to seek file with errno %d\n" CONSOLE_RESET, ret);
-        return ret;
-    }
-
-    ret = fseek(arc, offset, SEEK_SET);
-    if(ret) {
-        log(CONSOLE_RED "Failed to seek offset %lx from start of data.arc with errno %d\n" CONSOLE_RESET, offset, ret);
-        return ret;
-    }
-    return 0;
 }
 
 bool ZSTDFileIsFrame(const char* filePath) {
@@ -196,12 +178,10 @@ int load_mod(const char* path, long offset, FILE* arc) {
 
     if(pathStr.substr(pathStr.find_last_of('/'), 3) != "/0x") {
         if(arcReader == nullptr) {
-            consoleUpdate(NULL);
             arcReader = new ArcReader(arc_path.c_str());
             if(!arcReader->isInitialized()) {
                 arcReader = nullptr;
             }
-            consoleUpdate(NULL);
         }
         if(arcReader != nullptr) {
             if(arcReader->Version != smashVersion) {
@@ -226,16 +206,12 @@ int load_mod(const char* path, long offset, FILE* arc) {
                 }
             }
             if(compSize != decompSize && !ZSTDFileIsFrame(path)) {
-                if(compSize != 0) {
-                    compBuf = compressFile(path, compSize, realCompSize);
-                    if(compBuf == nullptr)
-                    {
-                        log(CONSOLE_RED "Compression failed on %s\n" CONSOLE_RESET, path);
-                        return -1;
-                    }
+                compBuf = compressFile(path, compSize, realCompSize);
+                if(compBuf == nullptr)
+                {
+                    log(CONSOLE_RED "Compression failed on %s\n" CONSOLE_RESET, path);
+                    return -1;
                 }
-                // should never happen, only mods with an Offsets entry get here
-                else log(CONSOLE_RED "Compressed size not found for %s\n" CONSOLE_RESET, path);
             }
             if(infoUpdated)
                 pendingTableWrite = true;
@@ -275,21 +251,30 @@ int load_mod(const char* path, long offset, FILE* arc) {
     else{
         FILE* f = fopen(path, "rb");
         if(f) {
-            int ret = seek_files(f, offset, arc);
-            if(!ret) {
-                void* copy_buffer = malloc(FILE_READ_SIZE);
-                uint64_t total_size = 0;
-                // Copy in up to FILE_READ_SIZE byte chunks
-                size_t size;
-                do {
-                    size = fread(copy_buffer, 1, FILE_READ_SIZE, f);
-                    total_size += size;
-
-                    fwrite(copy_buffer, 1, size, arc);
-                } while(size == FILE_READ_SIZE);
-
-                free(copy_buffer);
+            int ret = fseek(f, 0, SEEK_SET);
+            if(ret != 0) {
+                log(CONSOLE_RED "Failed to seek file with errno %d\n" CONSOLE_RESET, ret);
+                fclose(f);
+                return -1;
             }
+            ret = fseek(arc, offset, SEEK_SET);
+            if(ret != 0) {
+                log(CONSOLE_RED "Failed to seek offset %lx from start of data.arc with errno %d\n" CONSOLE_RESET, offset, ret);
+                fclose(f);
+                return -1;
+            }
+            void* copy_buffer = malloc(FILE_READ_SIZE);
+            uint64_t total_size = 0;
+            // Copy in up to FILE_READ_SIZE byte chunks
+            size_t size;
+            do {
+                size = fread(copy_buffer, 1, FILE_READ_SIZE, f);
+                total_size += size;
+
+                fwrite(copy_buffer, 1, size, arc);
+            } while(size == FILE_READ_SIZE);
+
+            free(copy_buffer);
             fclose(f);
         }
         else {
@@ -320,28 +305,18 @@ unsigned char xtoc(char x) {
     return -1;
 }
 
-uint64_t hex_to_u64(char* str) {
+uint64_t hex_to_u64(const char* str) {
     uint64_t value = 0;
+    int idx = 0;
     if(str[0] == '0' && str[1] == 'x') {
-        str += 2;
-        while(_isxdigit(*str)) {
+        idx += 2;
+        while(_isxdigit(str[idx])) {
             value *= 0x10;
-            value += xtoc(*str);
-            str++;
+            value += xtoc(str[idx]);
+            idx++;
         }
     }
     return value;
-}
-
-void add_mod_dir(const char* path) {
-    mod_dirs = (char**) realloc(mod_dirs, ++num_mod_dirs * sizeof(const char*));
-    mod_dirs[num_mod_dirs-1] = new char[FS_MAX_PATH];
-    strcpy(mod_dirs[num_mod_dirs-1], path);
-}
-
-void remove_last_mod_dir() {
-    delete[] mod_dirs[num_mod_dirs-1];
-    num_mod_dirs--;
 }
 
 void load_mods(FILE* f_arc) {
@@ -361,13 +336,11 @@ void load_mods(FILE* f_arc) {
         s64 offset = mod_files[i].offset;
         if(offset == 0) {
             if(arcReader == nullptr) {
-                consoleUpdate(NULL);
                 fclose(f_arc);
                 arcReader = new ArcReader(arc_path.c_str());
                 if(!arcReader->isInitialized())
                     arcReader = nullptr;
                 f_arc = fopen(arc_path.c_str(), "r+b");
-                consoleUpdate(NULL);
             }
             if(arcReader != nullptr) {
                 u32 compSize, decompSize;
@@ -424,47 +397,29 @@ void load_mods(FILE* f_arc) {
 }
 
 int enumerate_mod_files(FILE* f_arc) {
-    std::string mod_dir = mod_dirs[num_mod_dirs-1];
-    remove_last_mod_dir();
-    DIR *d;
-    struct dirent *dir;
-
-    std::string abs_mod_dir = std::string(manager_root) + mod_dir;
-    d = opendir(abs_mod_dir.c_str());
-    if(d)
-    {
-        while((dir = readdir(d)) != NULL)
-        {
-            if(dir->d_type == DT_DIR) {
-                if(strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0)
-                    continue;
-                std::string new_mod_dir = mod_dir + "/" + dir->d_name;
-                add_mod_dir(new_mod_dir.c_str());
-            }
-            else {
-                if(dir->d_name[0] == '.')
-                    continue;
-                s64 offset = hex_to_u64(dir->d_name);
-                if(mod_dir == "backups") {
-                    std::string backup_file = std::string(backups_root) + std::string(dir->d_name);
-                    mod_files.emplace_back(backup_file, offset);
-                }
-                else {
-                    std::string mod_file = std::string(manager_root) + mod_dir + "/" + dir->d_name;
-                    mod_files.emplace_back(mod_file, offset);
-                }
+    std::string mod_dir = modDirList.back();
+    modDirList.pop_back();
+    std::error_code ec;
+    s64 offset;
+    std::filesystem::path modpath;
+    auto fsit = std::filesystem::recursive_directory_iterator(std::filesystem::path(mod_dir), ec);
+    if(!ec) {
+        for(auto& dirEntry: fsit) {
+            if(dirEntry.is_regular_file()) {
+                modpath = dirEntry.path();
+                offset = hex_to_u64(modpath.filename().c_str());
+                mod_files.emplace_back(modpath, offset);
             }
         }
-        closedir(d);
     }
     else {
-        log(CONSOLE_RED "Failed to open mod directory '%s'\n" CONSOLE_RESET, abs_mod_dir.c_str());
+        log(CONSOLE_RED "Failed to open mod directory '%s'\n" CONSOLE_RESET, mod_dir.c_str());
     }
     return 0;
 }
 
 void perform_installation() {
-    std::string rootModDir = std::string(manager_root) + mod_dirs[num_mod_dirs-1];
+    std::string rootModDir = modDirList.back();
     FILE* f_arc;
     if(!std::filesystem::exists(arc_path) || std::filesystem::is_directory(std::filesystem::status(arc_path))) {
       log(CONSOLE_RED "\nNo data.arc found!\n" CONSOLE_RESET
@@ -481,10 +436,9 @@ void perform_installation() {
     else
         printf("\nUninstalling mods...\n\n");
     consoleUpdate(NULL);
-    while(num_mod_dirs > 0) {
+    while(!modDirList.empty()) {
         enumerate_mod_files(f_arc);
     }
-    free(mod_dirs);
     load_mods(f_arc);
     if(pendingTableWrite) {
         printf("Writing file table\n");
@@ -549,35 +503,31 @@ void modInstallerMainLoop(int kDown)
             start_install = true;
             uninstall = false;
         }
-        bool found_dir = false;
         printf("\n");
-        DIR* d = opendir(mods_root);
-        struct dirent *dir;
-        if(d) {
+        std::error_code ec;
+        auto fsit = std::filesystem::directory_iterator(std::filesystem::path(mods_root), ec);
+        if(!ec) {
             s64 curr_folder_index = 0;
-            while((dir = readdir(d)) != NULL) {
-                std::string d_name = std::string(dir->d_name);
-                if(dir->d_type == DT_DIR) {
-                    if(d_name == "." || d_name == "..")
-                        continue;
-                    std::string directory = "mods/" + d_name;
-                    if(std::find(InstalledMods.begin(), InstalledMods.end(), d_name) != InstalledMods.end())
+            std::filesystem::path path;
+            for(auto& dirEntry: fsit) {
+                if(dirEntry.is_directory()) {
+                    path = dirEntry.path();
+                    if(std::find(InstalledMods.begin(), InstalledMods.end(), path.filename()) != InstalledMods.end())
                         printf(CONSOLE_BLUE);
                     if(curr_folder_index == mod_folder_index) {
                         printf("%s> ", CONSOLE_GREEN);
                         if(start_install) {
-                            found_dir = true;
-                            add_mod_dir(directory.c_str());
+                            modDirList.emplace_back(dirEntry.path());
                         }
                     }
                     else if(std::find(installIDXs.begin(), installIDXs.end(), curr_folder_index) != installIDXs.end()) {
                         printf(CONSOLE_CYAN);
                         if(start_install) {
-                            add_mod_dir(directory.c_str());
+                            modDirList.emplace_back(dirEntry.path());
                         }
                     }
                     if(curr_folder_index < 42 || curr_folder_index <= mod_folder_index)
-                        printf("%s\n", dir->d_name);
+                        printf("%s\n", path.filename().c_str());
                     printf(CONSOLE_RESET);
                     curr_folder_index++;
                 }
@@ -592,8 +542,7 @@ void modInstallerMainLoop(int kDown)
             if(mod_folder_index == curr_folder_index) {
                 printf(CONSOLE_GREEN "> ");
                 if(start_install) {
-                    found_dir = true;
-                    add_mod_dir("backups");
+                    modDirList.push_back(backups_root);
                     if(arcReader == nullptr) {
                         arcReader = new ArcReader(arc_path.c_str());
                         if(!arcReader->isInitialized()) {
@@ -610,7 +559,6 @@ void modInstallerMainLoop(int kDown)
             if(mod_folder_index == curr_folder_index)
                 printf(CONSOLE_RESET);
 
-            closedir(d);
             if(applicationMode)
                 console_set_status(GREEN "\nMod Installer " VERSION_STRING " " RESET);
             else
@@ -625,12 +573,11 @@ void modInstallerMainLoop(int kDown)
         }
 
         consoleUpdate(NULL);
-        if(start_install && found_dir) {
+        if(start_install) {
             consoleClear();
             perform_installation();
             installation_finish = true;
-            mod_dirs = NULL;
-            num_mod_dirs = 0;
+            modDirList.clear();
             installIDXs.clear();
             updateInstalledList();
         }
