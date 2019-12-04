@@ -21,8 +21,8 @@ void printMainMenu() {
 void printDumperMenu() {
     consoleClear();
     console_set_status("\n" GREEN "Data Arc Dumper" RESET);
-    printf("\n\nPress 'A' to dump as a split file (FAT32)");
-    printf("\nPress 'Y' to dump as a single file (exFAT)");
+    printf("\n\nPress 'A' to dump as a split file");
+    printf("\nPress 'Y' to dump as a single file (exFAT only)");
     printf("\nPress 'X' to launch smash");
     printf("\nPress 'B' to return to the main menu");
     printf("\nPress 'R'+'X' to generate an MD5 hash of the file\n");
