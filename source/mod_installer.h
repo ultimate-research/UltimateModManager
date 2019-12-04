@@ -248,7 +248,7 @@ int load_mod(const char* path, long offset, FILE* arc) {
         fwrite(compBuf+headerSize, sizeof(char), (realCompSize - headerSize), arc);
         delete[] compBuf;
     }
-    else{
+    else {
         FILE* f = fopen(path, "rb");
         if(f) {
             int ret = fseek(f, 0, SEEK_SET);
@@ -263,18 +263,15 @@ int load_mod(const char* path, long offset, FILE* arc) {
                 fclose(f);
                 return -1;
             }
-            void* copy_buffer = malloc(FILE_READ_SIZE);
-            uint64_t total_size = 0;
+            char* copy_buffer = new char[FILE_READ_SIZE];
             // Copy in up to FILE_READ_SIZE byte chunks
             size_t size;
             do {
-                size = fread(copy_buffer, 1, FILE_READ_SIZE, f);
-                total_size += size;
-
-                fwrite(copy_buffer, 1, size, arc);
+                size = fread(copy_buffer, sizeof(char), FILE_READ_SIZE, f);
+                fwrite(copy_buffer, sizeof(char), size, arc);
             } while(size == FILE_READ_SIZE);
 
-            free(copy_buffer);
+            delete[] copy_buffer;
             fclose(f);
         }
         else {
@@ -384,7 +381,7 @@ void load_mods(FILE* f_arc) {
                 else
                     log(CONSOLE_RED "backup '0x%lx' does not exist\n" CONSOLE_RESET, offset);
                 std::string parentPath = std::filesystem::path(backup_path).parent_path();
-                free(backup_path);
+                delete[] backup_path;
                 rmdir(parentPath.c_str());
             }
         }
