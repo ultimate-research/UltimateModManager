@@ -184,10 +184,6 @@ int load_mod(const char* path, long offset, FILE* arc) {
             }
         }
         if(arcReader != nullptr) {
-            if(arcReader->Version != smashVersion) {
-                log(CONSOLE_RED "Your data.arc does not match your game version\n" CONSOLE_RESET);
-                return -1;
-            }
             std::string arcFileName = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
             bool regional;
             arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional, regionIndex);
@@ -450,6 +446,9 @@ void perform_installation() {
         pendingTableWrite = false;
     }
     fclose(f_arc);
+    if(arcReader != nullptr && arcReader->Version != smashVersion) {
+        printf(CONSOLE_RED "Warning: Your data.arc does not match your game version\n" CONSOLE_RESET);
+    }
     if(deleteMod) {
       printf("Deleting mod files\n");
       fsdevDeleteDirectoryRecursively(rootModDir.c_str());
