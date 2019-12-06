@@ -240,6 +240,7 @@ void removeRecursive(std::filesystem::path path)
   {
     for (auto & child : std::filesystem::directory_iterator(path))
       removeRecursive(child.path());
+    rmdir(path.c_str());
   }
 
   std::filesystem::remove(path);
