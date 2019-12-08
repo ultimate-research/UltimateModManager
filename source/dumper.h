@@ -11,7 +11,7 @@
 
 bool dump_done = false;
 bool exfat = false;
-std::string outPath = "sdmc:/" + getCFW() + "/titles/01006A800016E000/romfs/data.arc";
+std::string outPath = "sdmc:/" + getCFW() + "/contents/01006A800016E000/romfs/data.arc";
 const int MD5_DIGEST_LENGTH = 16;
 
 void md5HashFromFile(std::string filename, unsigned char* out)
