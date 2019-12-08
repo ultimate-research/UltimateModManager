@@ -131,6 +131,19 @@ void print_progress(size_t progress, size_t max) {
     printf("]\t%lu/%lu\n" RESET, progress, max);
 }
 
+std::string strsprintf(const char*, ...) __attribute__((format(printf, 1, 2)));
+std::string strsprintf(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    int size = vsnprintf(nullptr, 0, format, args) + 1;
+    char* cstr = new char[size];
+    vsnprintf(cstr, size, format, args);
+    std::string str(cstr);
+    delete[] cstr;
+    va_end(args);
+    return str;
+}
+
 std::vector<std::string> errorLogs;
 void log(const char*, ...) __attribute__((format(printf, 1, 2)));
 void log(const char* format, ...) {

@@ -22,10 +22,13 @@ bool pendingTableWrite = false;
 typedef struct ModFile {
     std::string mod_path;
     s64 offset;
+    u32 compSize;
+    u32 decompSize;
+    bool regional;
+    std::string dupeBackupPath = "";
 
-    ModFile(std::string mod_path, s64 offset)
-        : mod_path(std::move(mod_path)), offset(offset)
-    {}
+    ModFile(std::string mod_path, s64 offset, u32 compSize, u32 decompSize, bool regional)
+            : mod_path(std::move(mod_path)), offset(offset), compSize(compSize), decompSize(decompSize), regional(regional) {}
 } ModFile;
 std::vector<ModFile> mod_files;
 
@@ -119,40 +122,32 @@ char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns po
   delete[] inBuff;
   return outBuff;
 }
-// Forward declaration for use in backup()
-int load_mod(const char* path, long offset, FILE* arc);
 
-void backup(char* modName, u64 modSize, u64 offset, FILE* arc) {
+void checkForBackups(std::vector<ModFile> &mod_files) {
+    for(auto& dirEntry: std::filesystem::recursive_directory_iterator(backups_root)) {
+        if(dirEntry.is_regular_file()) {
+            for(ModFile& mod : mod_files) {
+                if(dirEntry.path().filename() == strsprintf("0x%lx.backup", mod.offset)) {
+                    mod.dupeBackupPath = dirEntry.path();
+                }
+            }
+        }
+    }
+}
+
+void backup(char* modName, u64 modSize, u64 offset, FILE* arc, std::string dupeBackupPath) {
     int fileNameSize = snprintf(nullptr, 0, "%s%s/0x%lx.backup", backups_root, modName, offset) + 1;
     char* backup_path = new char[fileNameSize];
     snprintf(backup_path, fileNameSize, "%s%s/0x%lx.backup", backups_root, modName, offset);
     std::string parentPath = std::filesystem::path(backup_path).parent_path();
     if(!std::filesystem::exists(parentPath))
         mkdir(parentPath.c_str(), 0777);
-    {
-        bool duplicateBackup = false;
-        std::filesystem::path dupeDirEntry;
-        for(auto& dirEntry: std::filesystem::recursive_directory_iterator(backups_root)) {
-            if(dirEntry.is_regular_file() && dirEntry.path().filename() == std::filesystem::path(backup_path).filename()) {
-                dupeDirEntry = dirEntry.path();
-                duplicateBackup = true;
-                break;
-            }
-        }
-        if(duplicateBackup) {
-            if(modSize > std::filesystem::file_size(dupeDirEntry)) {
-                load_mod(dupeDirEntry.c_str(), offset, arc);
-            }
-            else {
-                debug_log("Backup file 0x%lx.backup already exists\n", offset);
-                std::filesystem::rename(dupeDirEntry, backup_path);
-                rmdir(dupeDirEntry.parent_path().c_str());
-                delete[] backup_path;
-                return;
-            }
-        }
+    if(dupeBackupPath != "") {
+        std::filesystem::rename(dupeBackupPath, backup_path);
+        rmdir(std::filesystem::path(dupeBackupPath).parent_path().c_str());
+        delete[] backup_path;
+        return;
     }
-
     fseek(arc, offset, SEEK_SET);
     char* buf = new char[modSize];
     fread(buf, sizeof(char), modSize, arc);
@@ -168,50 +163,39 @@ void backup(char* modName, u64 modSize, u64 offset, FILE* arc) {
     return;
 }
 
-int load_mod(const char* path, long offset, FILE* arc) {
-    u32 compSize = 0;
-    u32 decompSize = 0;
+int load_mod(ModFile &mod, FILE* arc) {
     char* compBuf = nullptr;
     u64 realCompSize = 0;
-    std::string pathStr(path);
+    std::string pathStr = mod.mod_path;
+    const char* path = mod.mod_path.c_str();
     u64 modSize = std::filesystem::file_size(path);
 
-    if(pathStr.substr(pathStr.find_last_of('/'), 3) != "/0x") {
-        if(arcReader == nullptr) {
-            arcReader = new ArcReader(arc_path.c_str());
-            if(!arcReader->isInitialized()) {
-                arcReader = nullptr;
+    if(mod.compSize != 0) {
+        std::string arcFileName = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
+        bool infoUpdated = false;
+        if(mod.compSize == mod.decompSize && modSize > mod.decompSize)
+            if(arcReader->updateFileInfo(arcFileName, 0, 0, mod.decompSize+1, SUBFILE_COMPRESSED_ZSTD) != -1) {
+                infoUpdated = true;
+                mod.decompSize++;
+            }
+        if(modSize > mod.decompSize) {
+            if(arcReader->updateFileInfo(arcFileName, 0, 0, modSize) != -1)
+                infoUpdated = true;
+            else {
+                log(CONSOLE_RED "%s can not be larger than expected uncompressed size\n" CONSOLE_RESET, path);
+                return -1;
             }
         }
-        if(arcReader != nullptr) {
-            std::string arcFileName = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
-            bool regional;
-            arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional, regionIndex);
-            bool infoUpdated = false;
-            if(compSize == decompSize && modSize > decompSize)
-                if(arcReader->updateFileInfo(arcFileName, 0, 0, decompSize+1, SUBFILE_COMPRESSED_ZSTD) != -1) {
-                    infoUpdated = true;
-                    decompSize++;
-                }
-            if(modSize > decompSize) {
-                if(arcReader->updateFileInfo(arcFileName, 0, 0, modSize) != -1)
-                    infoUpdated = true;
-                else {
-                    log(CONSOLE_RED "%s can not be larger than expected uncompressed size\n" CONSOLE_RESET, path);
-                    return -1;
-                }
+        if(mod.compSize != mod.decompSize && !ZSTDFileIsFrame(path)) {
+            compBuf = compressFile(path, mod.compSize, realCompSize);
+            if(compBuf == nullptr)
+            {
+                log(CONSOLE_RED "Compression failed on %s\n" CONSOLE_RESET, path);
+                return -1;
             }
-            if(compSize != decompSize && !ZSTDFileIsFrame(path)) {
-                compBuf = compressFile(path, compSize, realCompSize);
-                if(compBuf == nullptr)
-                {
-                    log(CONSOLE_RED "Compression failed on %s\n" CONSOLE_RESET, path);
-                    return -1;
-                }
-            }
-            if(infoUpdated)
-                pendingTableWrite = true;
         }
+        if(infoUpdated)
+            pendingTableWrite = true;
     }
     if(pathStr.find(backups_root) == std::string::npos) {
         const char* modNameStart = path+strlen(mods_root);
@@ -219,16 +203,16 @@ int load_mod(const char* path, long offset, FILE* arc) {
         char* modName = new char[modNameSize+1];
         strncpy(modName, modNameStart, modNameSize);
         modName[modNameSize] = 0;
-        if(compSize > 0)
-            backup(modName, compSize, offset, arc);
+        if(mod.compSize > 0)
+            backup(modName, mod.compSize, mod.offset, arc, mod.dupeBackupPath);
         else
-            backup(modName, modSize, offset, arc);
+            backup(modName, modSize, mod.offset, arc, mod.dupeBackupPath);
         delete[] modName;
     }
     if(compBuf != nullptr) {
-        u64 headerSize = ZSTD_frameHeaderSize(compBuf, compSize);
-        u64 paddingSize = compSize - realCompSize;
-        fseek(arc, offset, SEEK_SET);
+        u64 headerSize = ZSTD_frameHeaderSize(compBuf, mod.compSize);
+        u64 paddingSize = mod.compSize - realCompSize;
+        fseek(arc, mod.offset, SEEK_SET);
         fwrite(compBuf, sizeof(char), headerSize, arc);
         char* zBuff = new char[paddingSize];
         memset(zBuff, 0, paddingSize);
@@ -253,9 +237,9 @@ int load_mod(const char* path, long offset, FILE* arc) {
                 fclose(f);
                 return -1;
             }
-            ret = fseek(arc, offset, SEEK_SET);
+            ret = fseek(arc, mod.offset, SEEK_SET);
             if(ret != 0) {
-                log(CONSOLE_RED "Failed to seek offset %lx from start of data.arc with errno %d\n" CONSOLE_RESET, offset, ret);
+                log(CONSOLE_RED "Failed to seek offset %lx from start of data.arc with errno %d\n" CONSOLE_RESET, mod.offset, ret);
                 fclose(f);
                 return -1;
             }
@@ -315,6 +299,7 @@ uint64_t hex_to_u64(const char* str) {
 void load_mods(FILE* f_arc) {
     size_t num_mod_files = mod_files.size();
     printf(CONSOLE_ESC(s));
+    checkForBackups(mod_files);
     for(size_t i = 0; i < num_mod_files; i++) {
         print_progress(i, num_mod_files);
         consoleUpdate(NULL);
@@ -327,20 +312,6 @@ void load_mods(FILE* f_arc) {
             rel_mod_dir = mod_path.substr(strlen(mods_root));
         std::string arcFileName = rel_mod_dir.substr(rel_mod_dir.find('/')+1);
         s64 offset = mod_files[i].offset;
-        if(offset == 0) {
-            if(arcReader == nullptr) {
-                fclose(f_arc);
-                arcReader = new ArcReader(arc_path.c_str());
-                if(!arcReader->isInitialized())
-                    arcReader = nullptr;
-                f_arc = fopen(arc_path.c_str(), "r+b");
-            }
-            if(arcReader != nullptr) {
-                u32 compSize, decompSize;
-                bool regional;
-                arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional);
-            }
-        }
 
         if(offset == 0) {
             log(CONSOLE_RED "\"%s\" was not found in the data.arc and no offset was in its name\n" CONSOLE_RESET "   Make sure the file name and path are correct.\n", arcFileName.c_str());
@@ -348,7 +319,7 @@ void load_mods(FILE* f_arc) {
         }
         const char* mod_path_c_str = mod_path.c_str();
         if(backupsFolder) {
-            load_mod(mod_path_c_str, offset, f_arc);
+            load_mod(mod_files[i], f_arc);
             remove(mod_path_c_str);
             std::string parentPath = std::filesystem::path(mod_path).parent_path();
             rmdir(parentPath.c_str());
@@ -356,7 +327,7 @@ void load_mods(FILE* f_arc) {
         else {
             if(!uninstall) {
                 appletSetCpuBoostMode(ApmCpuBoostMode_Type1);
-                load_mod(mod_path_c_str, offset, f_arc);
+                load_mod(mod_files[i], f_arc);
                 appletSetCpuBoostMode(ApmCpuBoostMode_Disabled);
                 debug_log("installed \"%s\"\n", mod_path_c_str);
             }
@@ -370,7 +341,7 @@ void load_mods(FILE* f_arc) {
                 char* backup_path = new char[fileNameSize];
                 snprintf(backup_path, fileNameSize, "%s%s/0x%lx.backup", backups_root, modName, offset);
                 if(std::filesystem::exists(backup_path)) {
-                    load_mod(backup_path, offset, f_arc);
+                    load_mod(mod_files[i], f_arc);
                     remove(backup_path);
                     debug_log("restored \"%s\"\n", backup_path);
                 }
@@ -389,11 +360,11 @@ void load_mods(FILE* f_arc) {
     mod_files.clear();
 }
 
-int enumerate_mod_files(FILE* f_arc) {
-    std::string mod_dir = modDirList.back();
-    modDirList.pop_back();
+int enumerate_mod_files(std::string mod_dir) {
     std::error_code ec;
     s64 offset;
+    u32 compSize, decompSize;
+    bool regional;
     std::filesystem::path modpath;
     auto fsit = std::filesystem::recursive_directory_iterator(std::filesystem::path(mod_dir), ec);
     if(!ec) {
@@ -402,7 +373,19 @@ int enumerate_mod_files(FILE* f_arc) {
             if(fsit->is_regular_file()) {
                 if(modpath.filename().string()[0] != '.') {
                     offset = hex_to_u64(modpath.filename().c_str());
-                    mod_files.emplace_back(modpath, offset);
+                    if(offset == 0) {
+                        if(arcReader == nullptr) {
+                            arcReader = new ArcReader(arc_path.c_str());
+                            if(!arcReader->isInitialized())
+                                arcReader = nullptr;
+                        }
+                        if(arcReader != nullptr) {
+                            std::string pathStr = modpath.string();
+                            std::string arcFileName = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
+                            arcReader->GetFileInformation(arcFileName, offset, compSize, decompSize, regional);
+                        }
+                    }
+                    mod_files.emplace_back(modpath, offset, compSize, decompSize, regional);
                 }
             }
             else if(modpath.parent_path().filename().string()[0] == '.') {
@@ -424,18 +407,20 @@ void perform_installation() {
       "   Please use the " CONSOLE_GREEN "Data Arc Dumper" CONSOLE_RESET " first.\n");
       goto end;
     }
-    f_arc = fopen(arc_path.c_str(), "r+b");
-    if(!f_arc) {
-        log(CONSOLE_RED "Failed to get file handle to data.arc\n" CONSOLE_RESET);
-        goto end;
-    }
     if(!uninstall)
         printf("\nInstalling mods...\n\n");
     else
         printf("\nUninstalling mods...\n\n");
     consoleUpdate(NULL);
     while(!modDirList.empty()) {
-        enumerate_mod_files(f_arc);
+        std::string mod_dir = modDirList.back();
+        modDirList.pop_back();
+        enumerate_mod_files(mod_dir);
+    }
+    f_arc = fopen(arc_path.c_str(), "r+b");
+    if(!f_arc) {
+        log(CONSOLE_RED "Failed to get file handle to data.arc\n" CONSOLE_RESET);
+        goto end;
     }
     load_mods(f_arc);
     if(pendingTableWrite) {
