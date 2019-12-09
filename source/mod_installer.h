@@ -162,13 +162,37 @@ void backup(char* modName, u64 modSize, u64 offset, FILE* arc, std::string dupeB
     return;
 }
 
+bool writeFileToOffset(FILE* inFile, FILE* outFile, u64 offset) {
+      int ret = fseek(inFile, 0, SEEK_SET);
+      if(ret != 0) {
+          log(CONSOLE_RED "Failed to seek file with errno %d\n" CONSOLE_RESET, ret);
+          fclose(inFile);
+          return false;
+      }
+      ret = fseek(outFile, offset, SEEK_SET);
+      if(ret != 0) {
+          log(CONSOLE_RED "Failed to seek offset %lx from start of data.arc with errno %d\n" CONSOLE_RESET, offset, ret);
+          fclose(outFile);
+          return false;
+      }
+      char* copy_buffer = new char[FILE_READ_SIZE];
+      // Copy in up to FILE_READ_SIZE byte chunks
+      size_t size;
+      do {
+          size = fread(copy_buffer, sizeof(char), FILE_READ_SIZE, inFile);
+          fwrite(copy_buffer, sizeof(char), size, outFile);
+      } while(size == FILE_READ_SIZE);
+      delete[] copy_buffer;
+      return true;
+}
+
 int load_mod(ModFile &mod, FILE* arc) {
     char* compBuf = nullptr;
     u64 realCompSize = 0;
     std::string pathStr = mod.mod_path;
     const char* path = mod.mod_path.c_str();
-    u64 modSize = std::filesystem::file_size(path);
 
+    u64 modSize = std::filesystem::file_size(path);
     if(mod.compSize != 0) {
         std::string arcFileName = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
         bool infoUpdated = false;
@@ -196,18 +220,17 @@ int load_mod(ModFile &mod, FILE* arc) {
         if(infoUpdated)
             pendingTableWrite = true;
     }
-    if(pathStr.find(backups_root) == std::string::npos) {
-        const char* modNameStart = path+strlen(mods_root);
-        u32 modNameSize = (u32)(strchr(modNameStart, '/') - modNameStart);
-        char* modName = new char[modNameSize+1];
-        strncpy(modName, modNameStart, modNameSize);
-        modName[modNameSize] = 0;
-        if(mod.compSize > 0)
-            backup(modName, mod.compSize, mod.offset, arc, mod.dupeBackupPath);
-        else
-            backup(modName, modSize, mod.offset, arc, mod.dupeBackupPath);
-        delete[] modName;
-    }
+    const char* modNameStart = path+strlen(mods_root);
+    u32 modNameSize = (u32)(strchr(modNameStart, '/') - modNameStart);
+    char* modName = new char[modNameSize+1];
+    strncpy(modName, modNameStart, modNameSize);
+    modName[modNameSize] = 0;
+    if(mod.compSize > 0)
+        backup(modName, mod.compSize, mod.offset, arc, mod.dupeBackupPath);
+    else
+        backup(modName, modSize, mod.offset, arc, mod.dupeBackupPath);
+    delete[] modName;
+
     if(compBuf != nullptr) {
         u64 headerSize = ZSTD_frameHeaderSize(compBuf, mod.compSize);
         u64 paddingSize = mod.compSize - realCompSize;
@@ -230,28 +253,10 @@ int load_mod(ModFile &mod, FILE* arc) {
     else {
         FILE* f = fopen(path, "rb");
         if(f) {
-            int ret = fseek(f, 0, SEEK_SET);
-            if(ret != 0) {
-                log(CONSOLE_RED "Failed to seek file with errno %d\n" CONSOLE_RESET, ret);
-                fclose(f);
-                return -1;
-            }
-            ret = fseek(arc, mod.offset, SEEK_SET);
-            if(ret != 0) {
-                log(CONSOLE_RED "Failed to seek offset %lx from start of data.arc with errno %d\n" CONSOLE_RESET, mod.offset, ret);
-                fclose(f);
-                return -1;
-            }
-            char* copy_buffer = new char[FILE_READ_SIZE];
-            // Copy in up to FILE_READ_SIZE byte chunks
-            size_t size;
-            do {
-                size = fread(copy_buffer, sizeof(char), FILE_READ_SIZE, f);
-                fwrite(copy_buffer, sizeof(char), size, arc);
-            } while(size == FILE_READ_SIZE);
-
-            delete[] copy_buffer;
+            bool succeed = writeFileToOffset(f, arc, mod.offset);
             fclose(f);
+            if(!succeed)
+                return -1;
         }
         else {
             log(CONSOLE_RED "Found file '%s', failed to get file handle\n" CONSOLE_RESET, path);
@@ -318,10 +323,14 @@ void load_mods(FILE* f_arc) {
         }
         const char* mod_path_c_str = mod_path.c_str();
         if(backupsFolder) {
-            load_mod(mod_files[i], f_arc);
-            remove(mod_path_c_str);
-            std::string parentPath = std::filesystem::path(mod_path).parent_path();
-            rmdir(parentPath.c_str());
+            FILE* f_backup = fopen(mod_path_c_str,"rb");
+            if(f_backup != nullptr) {
+                writeFileToOffset(f_backup, f_arc, offset);
+                fclose(f_backup);
+                remove(mod_path_c_str);
+                std::string parentPath = std::filesystem::path(mod_path).parent_path();
+                rmdir(parentPath.c_str());
+            }
         }
         else {
             if(!uninstall) {
@@ -339,8 +348,10 @@ void load_mods(FILE* f_arc) {
                 int fileNameSize = snprintf(nullptr, 0, "%s%s/0x%lx.backup", backups_root, modName, offset) + 1;
                 char* backup_path = new char[fileNameSize];
                 snprintf(backup_path, fileNameSize, "%s%s/0x%lx.backup", backups_root, modName, offset);
-                if(std::filesystem::exists(backup_path)) {
-                    load_mod(mod_files[i], f_arc);
+                FILE* f_backup = fopen(backup_path,"rb");
+                if(f_backup != nullptr) {
+                    writeFileToOffset(f_backup, f_arc, offset);
+                    fclose(f_backup);
                     remove(backup_path);
                     debug_log("restored \"%s\"\n", backup_path);
                 }
