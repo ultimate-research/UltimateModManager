@@ -81,11 +81,11 @@ void setZSTDCustomLvl(ZSTD_CCtx* cctx, int level) {
     }
 }
 
-char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns pointer to heap
+void compressFile(const char* path, u64 compSize, u64 &dataSize, char* &outBuff)  // returns pointer to heap
 {
   const int ZSTDCustom_maxCLevel = ZSTD_maxCLevel() + 2;
   u64 bufSize = compSize+0x100;
-  char* outBuff = new char[bufSize];
+  outBuff = new char[bufSize];
   FILE* inFile = fopen(path, "rb");
   fseek(inFile, 0, SEEK_END);
   u64 inSize = ftell(inFile);
@@ -120,7 +120,6 @@ char* compressFile(const char* path, u64 compSize, u64 &dataSize)  // returns po
   }
 
   delete[] inBuff;
-  return outBuff;
 }
 
 void checkForBackups(std::vector<ModFile> &mod_files) {
@@ -187,7 +186,7 @@ int load_mod(ModFile &mod, FILE* arc) {
             }
         }
         if(mod.compSize != mod.decompSize && !ZSTDFileIsFrame(path)) {
-            compBuf = compressFile(path, mod.compSize, realCompSize);
+            compressFile(path, mod.compSize, realCompSize, compBuf);
             if(compBuf == nullptr)
             {
                 log(CONSOLE_RED "Compression failed on %s\n" CONSOLE_RESET, path);
