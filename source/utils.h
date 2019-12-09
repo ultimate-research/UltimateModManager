@@ -64,6 +64,19 @@ void debug_log(const char* format, ...) {
     }
 }
 
+u64 getAtmosVersion() {
+    splInitialize();
+    u64 ver = 0;
+    SplConfigItem SplConfigItem_ExosphereVersion = (SplConfigItem)65000;
+    splGetConfig(SplConfigItem_ExosphereVersion, &ver);
+    splExit();
+    u32 major = (ver >> 32) & 0xFF;
+    u32 minor = (ver >> 24) & 0xFF;
+    u32 micro = (ver >> 16) & 0xFF;
+    ver = (major*10000) + (minor*100) + micro;
+    return ver;
+}
+
 std::string strTolower(std::string string) {
     for(int i = 0; string[i] != 0; i++) {
         string[i] = tolower(string[i]);
@@ -189,7 +202,10 @@ std::string dataArcPath(cfwName cfw) {
     std::string path;
     switch(cfw) {
         case atmosphere:
-            path = "sdmc:/atmosphere/contents/01006A800016E000/romfs/data.arc";
+            if(getAtmosVersion() >= 1000)
+                path = "sdmc:/atmosphere/contents/01006A800016E000/romfs/data.arc";
+            else
+                path = "sdmc:/atmosphere/titles/01006A800016E000/romfs/data.arc";
             break;
         case sxos:
             path = "sdmc:/sxos/titles/01006A800016E000/romfs/data.arc";
