@@ -42,7 +42,7 @@ std::list<std::string> modDirList;
 
 const char* mods_root = "sdmc:/UltimateModManager/mods/";
 const char* backups_root = "sdmc:/UltimateModManager/backups/";
-std::string arc_path = "sdmc:/" + getCFW() + "/contents/01006A800016E000/romfs/data.arc";
+std::string arc_path = dataArcPath(getCFW());
 
 int regionIndex = getRegion();
 

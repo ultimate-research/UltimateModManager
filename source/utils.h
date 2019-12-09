@@ -10,7 +10,7 @@ const u64 smashTID = 0x01006A800016E000;
 const char* manager_root = "sdmc:/UltimateModManager/";
 const char* tablePath = "sdmc:/UltimateModManager/compTable.backup";
 bool applicationMode = false;
-enum smashRegions{
+enum smashRegions {
     jp_ja,
     us_en,
     us_fr,
@@ -171,13 +171,34 @@ bool isServiceRunning(const char *serviceName) {
   return running;
 }
 
-std::string getCFW()
+enum cfwName {
+    atmosphere,
+    sxos,
+    ReiNX,
+};
+cfwName getCFW()
 {
   if (isServiceRunning("rnx"))
-    return "ReiNX";
+    return ReiNX;
   if (isServiceRunning("tx"))
-    return "sxos";
-  return "atmosphere";
+    return sxos;
+  return atmosphere;
+}
+
+std::string dataArcPath(cfwName cfw) {
+    std::string path;
+    switch(cfw) {
+        case atmosphere:
+            path = "sdmc:/atmosphere/contents/01006A800016E000/romfs/data.arc";
+            break;
+        case sxos:
+            path = "sdmc:/sxos/titles/01006A800016E000/romfs/data.arc";
+            break;
+        case ReiNX:
+            path = "sdmc:/ReiNX/titles/01006A800016E000/romfs/data.arc";
+            break;
+    }
+    return path;
 }
 
 u64 runningTID()
