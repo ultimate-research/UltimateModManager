@@ -100,7 +100,7 @@ void copy(const char* from, const char* to, bool exfat = false)
       mkdirs(folder, 0744);
     }
     if(!exfat) {
-      rc = fsdevCreateFile(to, 0, FS_CREATE_BIG_FILE);
+      rc = fsdevCreateFile(to, 0, FsCreateOption_BigFile);
       if (R_FAILED(rc)) {
         printf("\nfsdevCreateFile() failed: 0x%x", rc);
         fclose(source);

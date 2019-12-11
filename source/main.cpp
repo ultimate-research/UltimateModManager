@@ -29,7 +29,7 @@ void mainMenuLoop(int kDown) {
     }
 
     else if (kDown & KEY_Y) {
-        nifmInitialize();
+        nifmInitialize(NifmServiceType_User);
         NifmInternetConnectionStatus connectionStatus;
         if(R_SUCCEEDED(nifmGetInternetConnectionStatus(nullptr, nullptr, &connectionStatus))) {
             if(connectionStatus == NifmInternetConnectionStatus_Connected)
@@ -47,7 +47,7 @@ int main(int argc, char **argv)
         mkdirs(mods_root, 0777);
     mkdir(backups_root, 0777);
     if(std::filesystem::is_directory(std::filesystem::status(arc_path)) && !std::filesystem::is_empty(arc_path))
-        fsdevSetArchiveBit(arc_path.c_str());
+        fsdevSetConcatenationFileAttribute(arc_path.c_str());
     if(!std::filesystem::exists(outPath) || std::filesystem::is_empty(arc_path))
     {
         menu = ARC_DUMPER_MENU;

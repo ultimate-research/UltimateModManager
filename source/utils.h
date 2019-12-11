@@ -1,6 +1,7 @@
 #pragma once
 #include <filesystem>
 #include <map>
+#include <vector>
 #include <stdarg.h>
 #include "menu.h"
 #include "switch.h"
@@ -103,9 +104,9 @@ int getRegion() {
 void getVersion(u64 tid, char version[0x10]) {
     nsInitialize();
     NsApplicationControlData contolData;
-    nsGetApplicationControlData(1, tid, &contolData, sizeof(NsApplicationControlData), NULL);
+    nsGetApplicationControlData(NsApplicationControlSource_Storage, tid, &contolData, sizeof(NsApplicationControlData), NULL);
     nsExit();
-    strcpy(version, contolData.nacp.version);
+    strcpy(version, contolData.nacp.display_version);
 }
 
 int getSmashVersion() {
@@ -172,14 +173,15 @@ void log(const char* format, ...) {
     va_end(args);
 }
 
-bool isServiceRunning(const char *serviceName) {
+bool isServiceRunning(const char* serviceName) {
   Handle handle;
-  bool running = R_FAILED(smRegisterService(&handle, serviceName, false, 1));
+  SmServiceName encodedName = smEncodeName(serviceName);
+  bool running = R_FAILED(smRegisterService(&handle, encodedName, false, 1));
 
   svcCloseHandle(handle);
 
   if (!running)
-    smUnregisterService(serviceName);
+    smUnregisterService(encodedName);
 
   return running;
 }
@@ -223,8 +225,8 @@ u64 runningTID()
   u64 tid = 0;
   pmdmntInitialize();
   pminfoInitialize();
-  pmdmntGetApplicationPid(&pid);
-  pminfoGetTitleId(&tid, pid);
+  pmdmntGetApplicationProcessId(&pid);
+  pminfoGetProgramId(&tid, pid);
   pminfoExit();
   pmdmntExit();
   return tid;
