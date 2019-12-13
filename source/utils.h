@@ -69,12 +69,13 @@ u64 getAtmosVersion() {
     splInitialize();
     u64 ver = 0;
     SplConfigItem SplConfigItem_ExosphereVersion = (SplConfigItem)65000;
-    splGetConfig(SplConfigItem_ExosphereVersion, &ver);
+    if(R_SUCCEEDED(splGetConfig(SplConfigItem_ExosphereVersion, &ver))) {
+        u32 major = (ver >> 32) & 0xFF;
+        u32 minor = (ver >> 24) & 0xFF;
+        u32 micro = (ver >> 16) & 0xFF;
+        ver = (major*10000) + (minor*100) + micro;
+    }
     splExit();
-    u32 major = (ver >> 32) & 0xFF;
-    u32 minor = (ver >> 24) & 0xFF;
-    u32 micro = (ver >> 16) & 0xFF;
-    ver = (major*10000) + (minor*100) + micro;
     return ver;
 }
 
