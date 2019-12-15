@@ -64,16 +64,22 @@ int main(int argc, char **argv)
 
         u64 kDown = hidKeysDown(CONTROLLER_P1_AUTO);
 
-        if (kDown & KEY_PLUS) break; // break in order to return to hbmenu
+        if(kDown & KEY_PLUS) break; // break in order to return to hbmenu
 
-        if (menu == mainMenu)
-            mainMenuLoop(kDown);
-        else if (menu == modInstallerMenu)
-            modInstallerMainLoop(kDown);
-        else if (menu == arcDumperMenu)
-            dumperMainLoop(kDown);
-        else if (menu == ftpMenu)
-            ftp_main();
+        switch(menu) {
+            case mainMenu:
+                mainMenuLoop(kDown);
+                break;
+            case modInstallerMenu:
+                modInstallerMainLoop(kDown);
+                break;
+            case arcDumperMenu:
+                dumperMainLoop(kDown);
+                break;
+            case ftpMenu:
+                ftp_main();
+                break;
+        }
 
         consoleUpdate(NULL);
     }
