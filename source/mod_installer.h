@@ -599,7 +599,7 @@ void modInstallerMainLoop(int kDown)
               ZSTD_freeCCtx(compContext);
               compContext = nullptr;
           }
-          menu = MAIN_MENU;
+          menu = mainMenu;
           printMainMenu();
         }
     }

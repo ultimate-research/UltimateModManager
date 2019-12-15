@@ -17,14 +17,14 @@ extern "C" {
 void mainMenuLoop(int kDown) {
     if (kDown & KEY_A) {
         installation_finish = false;
-        menu = MOD_INSTALLER_MENU;
+        menu = modInstallerMenu;
 
         consoleClear();
     }
 
     else if (kDown & KEY_X) {
         dump_done = false;
-        menu = ARC_DUMPER_MENU;
+        menu = arcDumperMenu;
         printDumperMenu();
     }
 
@@ -33,7 +33,7 @@ void mainMenuLoop(int kDown) {
         NifmInternetConnectionStatus connectionStatus;
         if(R_SUCCEEDED(nifmGetInternetConnectionStatus(nullptr, nullptr, &connectionStatus))) {
             if(connectionStatus == NifmInternetConnectionStatus_Connected)
-                menu = FTP_MENU;
+                menu = ftpMenu;
         }
         nifmExit();
     }
@@ -50,7 +50,7 @@ int main(int argc, char **argv)
         fsdevSetConcatenationFileAttribute(arc_path.c_str());
     if(!std::filesystem::exists(outPath) || std::filesystem::is_empty(arc_path))
     {
-        menu = ARC_DUMPER_MENU;
+        menu = arcDumperMenu;
         printDumperMenu();
     }
     remove(log_file);
@@ -66,13 +66,13 @@ int main(int argc, char **argv)
 
         if (kDown & KEY_PLUS) break; // break in order to return to hbmenu
 
-        if (menu == MAIN_MENU)
+        if (menu == mainMenu)
             mainMenuLoop(kDown);
-        else if (menu == MOD_INSTALLER_MENU)
+        else if (menu == modInstallerMenu)
             modInstallerMainLoop(kDown);
-        else if (menu == ARC_DUMPER_MENU)
+        else if (menu == arcDumperMenu)
             dumperMainLoop(kDown);
-        else if (menu == FTP_MENU)
+        else if (menu == ftpMenu)
             ftp_main();
 
         consoleUpdate(NULL);

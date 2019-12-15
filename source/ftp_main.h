@@ -42,7 +42,7 @@ loop(loop_status_t (*callback)(void))
       return status;
   }
   appletSetMediaPlaybackState(false);
-  menu = MAIN_MENU;
+  menu = mainMenu;
   printMainMenu();
   return LOOP_EXIT;
 #else
@@ -65,7 +65,7 @@ wait_for_b(void)
 
   /* check if B was pressed */
   if(hidKeysDown() & KEY_B) {
-    menu = MAIN_MENU;
+    menu = mainMenu;
     printMainMenu();
     return LOOP_EXIT;
   }
@@ -138,7 +138,7 @@ ftp_main()
 
       /* done with ftp */
       ftp_exit();
-      menu = MAIN_MENU;
+      menu = mainMenu;
       printMainMenu();
       status = LOOP_EXIT;
     }

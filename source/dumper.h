@@ -212,7 +212,7 @@ void dumperMainLoop(int kDown) {
     }
 
     if (kDown & KEY_B) {
-        menu = MAIN_MENU;
+        menu = mainMenu;
         printMainMenu();
     }
 }

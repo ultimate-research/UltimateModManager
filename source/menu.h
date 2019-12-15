@@ -4,12 +4,14 @@ extern "C" {
 #include "console.h"
 }
 
-#define MAIN_MENU 0
-#define MOD_INSTALLER_MENU 1
-#define ARC_DUMPER_MENU 2
-#define FTP_MENU 3
+enum menus {
+    mainMenu,
+    modInstallerMenu,
+    arcDumperMenu,
+    ftpMenu
+};
 
-int menu = MOD_INSTALLER_MENU;
+menus menu = modInstallerMenu;
 
 void printMainMenu() {
     consoleClear();
