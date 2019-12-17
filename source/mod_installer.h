@@ -142,7 +142,7 @@ void backup(char* modName, u64 modSize, u64 offset, FILE* arc, std::string dupeB
     if(!std::filesystem::exists(parentPath))
         mkdir(parentPath.c_str(), 0777);
     if(dupeBackupPath != "") {
-        std::filesystem::rename(dupeBackupPath, backup_path);
+        rename(dupeBackupPath.c_str(), backup_path);
         rmdir(std::filesystem::path(dupeBackupPath).parent_path().c_str());
         delete[] backup_path;
         return;
