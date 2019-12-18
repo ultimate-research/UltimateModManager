@@ -16,7 +16,7 @@ jobs:
     - name: Install DKP
       run: sudo dpkg -i devkitpro-pacman.deb
     - name: Install packages
-      run: printf "\nY" | sudo dkp-pacman -S switch-dev switch-mbedtls
+      run: printf "\nY" | sudo dkp-pacman -S switch-dev switch-mbedtls git
     - name: make
       run: make
 
