@@ -5,6 +5,7 @@
 #include <string.h>
 #include <algorithm>
 #include <list>
+#include <queue>
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
 #include "utils.h"
@@ -38,7 +39,7 @@ int smashVersion;
 ZSTD_CCtx* compContext = nullptr;
 std::list<s64> installIDXs;
 std::list<std::string> InstalledMods;
-std::list<std::string> modDirList;
+std::queue<std::string> modDirList;
 
 const char* mods_root = "sdmc:/UltimateModManager/mods/";
 const char* backups_root = "sdmc:/UltimateModManager/backups/";
@@ -410,7 +411,7 @@ int enumerate_mod_files(std::string mod_dir) {
 }
 
 void perform_installation() {
-    std::string rootModDir = modDirList.back();
+    std::string rootModDir = modDirList.front();
     FILE* f_arc;
     if(!std::filesystem::exists(arc_path) || std::filesystem::is_directory(std::filesystem::status(arc_path))) {
       log(CONSOLE_RED "\nNo data.arc found!\n" CONSOLE_RESET
@@ -423,8 +424,8 @@ void perform_installation() {
         printf("\nUninstalling mods...\n\n");
     consoleUpdate(NULL);
     while(!modDirList.empty()) {
-        std::string mod_dir = modDirList.back();
-        modDirList.pop_back();
+        std::string mod_dir = modDirList.front();
+        modDirList.pop();
         enumerate_mod_files(mod_dir);
     }
     f_arc = fopen(arc_path.c_str(), "r+b");
@@ -444,8 +445,8 @@ void perform_installation() {
         printf(CONSOLE_RED "Warning: Your data.arc does not match your game version\n" CONSOLE_RESET);
     }
     if(deleteMod) {
-      printf("Deleting mod files\n");
-      fsdevDeleteDirectoryRecursively(rootModDir.c_str());
+        printf("Deleting mod files\n");
+        fsdevDeleteDirectoryRecursively(rootModDir.c_str());
     }
 
 end:
@@ -519,13 +520,13 @@ void modInstallerMainLoop(int kDown)
                     if(curr_folder_index == mod_folder_index) {
                         printf("%s> ", CONSOLE_GREEN);
                         if(start_install) {
-                            modDirList.emplace_back(dirEntry.path());
+                            modDirList.emplace(dirEntry.path());
                         }
                     }
                     else if(std::find(installIDXs.begin(), installIDXs.end(), curr_folder_index) != installIDXs.end()) {
                         printf(CONSOLE_CYAN);
                         if(start_install) {
-                            modDirList.emplace_back(dirEntry.path());
+                            modDirList.emplace(dirEntry.path());
                         }
                     }
                     if(curr_folder_index < 42 || curr_folder_index <= mod_folder_index)
@@ -544,7 +545,7 @@ void modInstallerMainLoop(int kDown)
             if(mod_folder_index == curr_folder_index) {
                 printf(CONSOLE_GREEN "> ");
                 if(start_install) {
-                    modDirList.push_back(backups_root);
+                    modDirList.push(backups_root);
                     if(arcReader == nullptr) {
                         arcReader = new ArcReader(arc_path.c_str());
                         if(!arcReader->isInitialized()) {
@@ -579,7 +580,6 @@ void modInstallerMainLoop(int kDown)
             consoleClear();
             perform_installation();
             installation_finish = true;
-            modDirList.clear();
             installIDXs.clear();
             updateInstalledList();
         }
