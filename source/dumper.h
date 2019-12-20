@@ -19,7 +19,7 @@ void md5HashFromFile(std::string filename, unsigned char* out)
     FILE *inFile = fopen (filename.c_str(), "rb");
     mbedtls_md5_context md5Context;
     int bytes;
-    u64 bufSize = 500000;
+    u64 bufSize = 512000;
     unsigned char data[bufSize];
 
     if (inFile == NULL)
@@ -55,7 +55,7 @@ void copy(const char* from, const char* to, bool exfat = false)
     //const u64 fat32Max = 0xFFFFFFFF;
     //const u64 splitSize = 0xFFFF0000;
     const u64 smashTID = 0x01006A800016E000;
-    u64 bufSize = 0x0F0F0F0F;
+    u64 bufSize = 0x0F116C00;
 
     if(runningTID() != smashTID)
     {
