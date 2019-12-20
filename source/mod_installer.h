@@ -449,15 +449,15 @@ void perform_installation() {
     }
 
 end:
-    if(!errorLogs.empty()) {
-        printf("Error Logs:\n");
-        for(std::string line : errorLogs) {
-            printf(line.c_str());
-        }
-        errorLogs.clear();
-    }
-    else
+    if(errorLogs.empty())
         printf(CONSOLE_GREEN "Successful\n" CONSOLE_RESET);
+    else {
+        printf("Error Logs:\n");
+        while (!errorLogs.empty()) {
+            printf(errorLogs.top().c_str());
+            errorLogs.pop();
+        }
+    }
     printf("Press B to return to the Mod Installer.\n");
     printf("Press X to launch Smash\n\n");
 }

@@ -1,7 +1,7 @@
 #pragma once
 #include <filesystem>
 #include <map>
-#include <vector>
+#include <stack>
 #include <stdarg.h>
 #include "menu.h"
 #include "switch.h"
@@ -159,7 +159,7 @@ std::string strsprintf(const char* format, ...) {
     return str;
 }
 
-std::vector<std::string> errorLogs;
+std::stack<std::string> errorLogs;
 void log(const char*, ...) __attribute__((format(printf, 1, 2)));
 void log(const char* format, ...) {
     va_list args;
@@ -167,10 +167,8 @@ void log(const char* format, ...) {
     int len = vsnprintf(nullptr, 0, format, args) + 1;
     char* buffer = new char[len];
     vsnprintf(buffer, len, format, args);
-
-    std::string logLine = std::string(buffer);
+    errorLogs.emplace(buffer);
     delete[] buffer;
-    errorLogs.push_back(logLine);
     va_end(args);
 }
 
