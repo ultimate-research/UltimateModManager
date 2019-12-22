@@ -82,16 +82,18 @@ void setZSTDCustomLvl(ZSTD_CCtx* cctx, int level) {
     }
 }
 
-void compressFile(const char* path, u64 compSize, u64 &dataSize, char* &outBuff)  // returns pointer to heap
+bool compressFile(const char* path, u64 compSize, u64 &dataSize, char* outBuff, u64 bufSize)
 {
   const int ZSTDCustom_maxCLevel = ZSTD_maxCLevel() + 2;
-  u64 bufSize = compSize+0x100;
-  outBuff = new char[bufSize];
   FILE* inFile = fopen(path, "rb");
   fseek(inFile, 0, SEEK_END);
   u64 inSize = ftell(inFile);
   fseek(inFile, 0, SEEK_SET);
-  char* inBuff = new char[inSize];
+  char* inBuff = new(std::nothrow) char[inSize];
+  if(inBuff == nullptr) {
+      log(CONSOLE_RED "Failed to allocate for mod file. Not enough memory.\n" CONSOLE_RESET);
+      return false;
+  }
   fread(inBuff, sizeof(char), inSize, inFile);
   fclose(inFile);
   int compLvl = 3;
@@ -118,11 +120,10 @@ void compressFile(const char* path, u64 compSize, u64 &dataSize, char* &outBuff)
   if(compLvl > ZSTDCustom_maxCLevel) {
       if(bytesAway != ULONG_MAX)
           log("%lu bytes too large ", bytesAway);
-      delete[] outBuff;
-      outBuff = nullptr;
+      return false;
   }
-
   delete[] inBuff;
+  return true;
 }
 
 void checkForBackups(std::vector<ModFile> &mod_files) {
@@ -191,7 +192,8 @@ bool writeFileToOffset(FILE* inFile, FILE* outFile, u64 offset) {
 
 int load_mod(ModFile &mod, FILE* arc) {
     char* compBuf = nullptr;
-    u64 realCompSize = 0;
+    u64 bufSize = mod.compSize+0x100;
+    u64 compSize = 0;
     std::string pathStr = mod.mod_path;
     const char* path = mod.mod_path.c_str();
 
@@ -213,10 +215,16 @@ int load_mod(ModFile &mod, FILE* arc) {
             }
         }
         if(mod.compSize != mod.decompSize && !ZSTDFileIsFrame(path)) {
-            compressFile(path, mod.compSize, realCompSize, compBuf);
-            if(compBuf == nullptr)
+            compBuf = new(std::nothrow) char[bufSize];
+            if(compBuf == nullptr) {
+                log(CONSOLE_RED "%s Failed to allocate for compression. Not enough memory.\n" CONSOLE_RESET, path);
+                return -1;
+            }
+            bool succeeded = compressFile(path, mod.compSize, compSize, compBuf, bufSize);
+            if(!succeeded)
             {
                 log(CONSOLE_RED "Compression failed on %s\n" CONSOLE_RESET, path);
+                delete[] compBuf;
                 return -1;
             }
         }
@@ -236,7 +244,7 @@ int load_mod(ModFile &mod, FILE* arc) {
 
     if(compBuf != nullptr) {
         u64 headerSize = ZSTD_frameHeaderSize(compBuf, mod.compSize);
-        u64 paddingSize = mod.compSize - realCompSize;
+        u64 paddingSize = mod.compSize - compSize;
         fseek(arc, mod.offset, SEEK_SET);
         fwrite(compBuf, sizeof(char), headerSize, arc);
         char* zBuff = new char[paddingSize];
@@ -250,7 +258,7 @@ int load_mod(ModFile &mod, FILE* arc) {
         }
         fwrite(zBuff, sizeof(char), paddingSize, arc);
         delete[] zBuff;
-        fwrite(compBuf+headerSize, sizeof(char), (realCompSize - headerSize), arc);
+        fwrite(compBuf+headerSize, sizeof(char), (compSize - headerSize), arc);
         delete[] compBuf;
     }
     else {
