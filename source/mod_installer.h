@@ -104,6 +104,8 @@ void compressFile(const char* path, u64 compSize, u64 &dataSize, char* &outBuff)
   do {
     setZSTDCustomLvl(compContext, compLvl++);
     dataSize = ZSTD_compress2(compContext, outBuff, bufSize, inBuff, inSize);
+    if(ZSTD_isError(dataSize) && dataSize != 0xffffffffffffffba)
+        log("%s Error at lvl %d: %lx %s\n", path, compLvl, dataSize, ZSTD_getErrorName(dataSize));
     if(!ZSTD_isError(dataSize) && dataSize > compSize) {
         debug_log("Compressed \"%s\" to %lu bytes, %lu bytes away from goal, at level %d.\n", path, dataSize, dataSize - compSize, compLvl-1);
         if(dataSize - compSize < bytesAway)
