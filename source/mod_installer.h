@@ -68,23 +68,8 @@ bool paddable(u64 padSize) {
     return !(padSize == 1 || padSize == 2 || padSize == 5);
 }
 
-void setZSTDCustomLvl(ZSTD_CCtx* cctx, int level) {
-    if(level <= ZSTD_maxCLevel())
-        ZSTD_CCtx_setParameter(compContext, ZSTD_c_compressionLevel, level);
-    else if(level == ZSTD_maxCLevel() + 1) {
-        ZSTD_CCtx_setParameter(compContext, ZSTD_c_compressionLevel, 22);
-        ZSTD_CCtx_setParameter(compContext, ZSTD_c_strategy, ZSTD_btopt);
-    }
-    else if(level == ZSTD_maxCLevel() + 2) {
-        ZSTD_CCtx_setParameter(compContext, ZSTD_c_compressionLevel, 22);
-        ZSTD_CCtx_setParameter(compContext, ZSTD_c_minMatch, 4);
-        ZSTD_CCtx_setParameter(compContext, ZSTD_c_strategy, ZSTD_greedy);
-    }
-}
-
 bool compressFile(const char* path, u64 compSize, u64 &dataSize, char* outBuff, u64 bufSize)
 {
-  const int ZSTDCustom_maxCLevel = ZSTD_maxCLevel() + 2;
   FILE* inFile = fopen(path, "rb");
   fseek(inFile, 0, SEEK_END);
   u64 inSize = ftell(inFile);
@@ -104,7 +89,7 @@ bool compressFile(const char* path, u64 compSize, u64 &dataSize, char* outBuff, 
   ZSTD_CCtx_setParameter(compContext, ZSTD_c_checksumFlag, 0);
   ZSTD_CCtx_setParameter(compContext, ZSTD_c_dictIDFlag, 1);
   do {
-    setZSTDCustomLvl(compContext, compLvl++);
+    ZSTD_CCtx_setParameter(compContext, ZSTD_c_compressionLevel, compLvl++);
     dataSize = ZSTD_compress2(compContext, outBuff, bufSize, inBuff, inSize);
     if(ZSTD_isError(dataSize) && dataSize != 0xffffffffffffffba)
         log("%s Error at lvl %d: %lx %s\n", path, compLvl, dataSize, ZSTD_getErrorName(dataSize));
@@ -115,9 +100,9 @@ bool compressFile(const char* path, u64 compSize, u64 &dataSize, char* outBuff, 
     }
     if(compLvl==10) compLvl = 17;  // skip arbitrary amount of levels for speed.
   }
-  while((dataSize > compSize || ZSTD_isError(dataSize) || !paddable(compSize - dataSize)) && compLvl <= ZSTDCustom_maxCLevel);
+  while((dataSize > compSize || ZSTD_isError(dataSize) || !paddable(compSize - dataSize)) && compLvl <= ZSTD_maxCLevel());
 
-  if(compLvl > ZSTDCustom_maxCLevel) {
+  if(compLvl > ZSTD_maxCLevel()) {
       if(bytesAway != ULONG_MAX)
           log("%lu bytes too large ", bytesAway);
       return false;
