@@ -8,6 +8,7 @@
 #include <queue>
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
+#include <zstd_errors.h>
 #include "utils.h"
 #include "arcReader.h"
 #include <stdarg.h>
@@ -91,7 +92,7 @@ bool compressFile(const char* path, u64 compSize, u64 &dataSize, char* outBuff, 
   do {
     ZSTD_CCtx_setParameter(compContext, ZSTD_c_compressionLevel, compLvl++);
     dataSize = ZSTD_compress2(compContext, outBuff, bufSize, inBuff, inSize);
-    if(ZSTD_isError(dataSize) && dataSize != 0xffffffffffffffba)
+    if(ZSTD_isError(dataSize) && ZSTD_getErrorCode(dataSize) != ZSTD_error_dstSize_tooSmall)
         log("%s Error at lvl %d: %lx %s\n", path, compLvl, dataSize, ZSTD_getErrorName(dataSize));
     if(!ZSTD_isError(dataSize) && dataSize > compSize) {
         debug_log("Compressed \"%s\" to %lu bytes, %lu bytes away from goal, at level %d.\n", path, dataSize, dataSize - compSize, compLvl-1);
