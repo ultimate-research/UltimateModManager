@@ -369,9 +369,9 @@ void load_mods(FILE* f_arc) {
 
 int enumerate_mod_files(std::string mod_dir) {
     std::error_code ec;
-    s64 offset;
-    u32 compSize, decompSize;
-    bool regional;
+    s64 offset = 0;
+    u32 compSize = 0, decompSize = 0;
+    bool regional = false;
     std::filesystem::path modpath;
     auto fsit = std::filesystem::recursive_directory_iterator(std::filesystem::path(mod_dir), ec);
     if(!ec) {
