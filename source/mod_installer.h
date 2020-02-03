@@ -71,25 +71,25 @@ bool paddable(u64 padSize) {
 
 bool compressFile(const char* path, u64 compSize, u64 &dataSize, char* outBuff, u64 bufSize)
 {
-  FILE* inFile = fopen(path, "rb");
-  fseek(inFile, 0, SEEK_END);
-  u64 inSize = ftell(inFile);
-  fseek(inFile, 0, SEEK_SET);
-  char* inBuff = new(std::nothrow) char[inSize];
-  if(inBuff == nullptr) {
+    FILE* inFile = fopen(path, "rb");
+    fseek(inFile, 0, SEEK_END);
+    u64 inSize = ftell(inFile);
+    fseek(inFile, 0, SEEK_SET);
+    char* inBuff = new(std::nothrow) char[inSize];
+    if(inBuff == nullptr) {
       log(CONSOLE_RED "Failed to allocate for mod file. Not enough memory.\n" CONSOLE_RESET);
       return false;
-  }
-  fread(inBuff, sizeof(char), inSize, inFile);
-  fclose(inFile);
-  int compLvl = 3;
-  u64 bytesAway = ULONG_MAX;
-  if(compContext == nullptr) compContext = ZSTD_createCCtx();
-   // Minimize header size
-  ZSTD_CCtx_setParameter(compContext, ZSTD_c_contentSizeFlag, 1);
-  ZSTD_CCtx_setParameter(compContext, ZSTD_c_checksumFlag, 0);
-  ZSTD_CCtx_setParameter(compContext, ZSTD_c_dictIDFlag, 1);
-  do {
+    }
+    fread(inBuff, sizeof(char), inSize, inFile);
+    fclose(inFile);
+    int compLvl = 3;
+    u64 bytesAway = ULONG_MAX;
+    if(compContext == nullptr) compContext = ZSTD_createCCtx();
+    // Minimize header size
+    ZSTD_CCtx_setParameter(compContext, ZSTD_c_contentSizeFlag, 1);
+    ZSTD_CCtx_setParameter(compContext, ZSTD_c_checksumFlag, 0);
+    ZSTD_CCtx_setParameter(compContext, ZSTD_c_dictIDFlag, 1);
+    do {
     ZSTD_CCtx_setParameter(compContext, ZSTD_c_compressionLevel, compLvl++);
     dataSize = ZSTD_compress2(compContext, outBuff, bufSize, inBuff, inSize);
     if(ZSTD_isError(dataSize) && ZSTD_getErrorCode(dataSize) != ZSTD_error_dstSize_tooSmall)
@@ -100,16 +100,18 @@ bool compressFile(const char* path, u64 compSize, u64 &dataSize, char* outBuff, 
             bytesAway = dataSize - compSize;
     }
     if(compLvl==10) compLvl = 17;  // skip arbitrary amount of levels for speed.
-  }
-  while((dataSize > compSize || ZSTD_isError(dataSize) || !paddable(compSize - dataSize)) && compLvl <= ZSTD_maxCLevel());
+    }
+    while((dataSize > compSize || ZSTD_isError(dataSize) || !paddable(compSize - dataSize)) && compLvl <= ZSTD_maxCLevel());
 
-  if(compLvl > ZSTD_maxCLevel()) {
-      if(bytesAway != ULONG_MAX)
-          log("%lu bytes too large ", bytesAway);
-      return false;
-  }
-  delete[] inBuff;
-  return true;
+    if(compLvl > ZSTD_maxCLevel()) {
+        if(bytesAway != ULONG_MAX)
+            log("%lu bytes too large " CONSOLE_RED "compression failed on %s\n" CONSOLE_RESET, bytesAway, path);
+        else
+            log(CONSOLE_RED "Compression failed on %s\n" CONSOLE_RESET, path);
+        return false;
+    }
+    delete[] inBuff;
+    return true;
 }
 
 void checkForBackups(std::vector<ModFile> &mod_files) {
@@ -209,7 +211,6 @@ int load_mod(ModFile &mod, FILE* arc) {
             bool succeeded = compressFile(path, mod.compSize, compSize, compBuf, bufSize);
             if(!succeeded)
             {
-                log(CONSOLE_RED "Compression failed on %s\n" CONSOLE_RESET, path);
                 delete[] compBuf;
                 return -1;
             }
