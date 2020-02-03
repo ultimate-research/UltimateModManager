@@ -190,7 +190,8 @@ void dumperMainLoop(int kDown) {
             appletRequestLaunchApplication(smashTID, NULL);
         }
     }
-    if (kDown & KEY_Y && !dump_done) exfat = true;
+    if (kDown & KEY_Y) exfat = true;
+    if (kDown & KEY_A) exfat = false;
     if ((kDown & KEY_A || kDown & KEY_Y) && !dump_done)
     {
         printf("\nBeginning the dumping process...\n" CONSOLE_ESC(s));
