@@ -17,8 +17,8 @@ extern "C" {
 void mainMenuLoop(int kDown) {
     if (kDown & KEY_A) {
         installation_finish = false;
+        updateInstalledList();
         menu = modInstallerMenu;
-
         consoleClear();
     }
 
