@@ -396,7 +396,7 @@ int enumerate_mod_files(std::string mod_dir) {
                     mod_files.emplace_back(modpath, offset, compSize, decompSize, regional);
                 }
             }
-            else if(modpath.parent_path().filename().string()[0] == '.') {
+            else if(modpath.filename().string()[0] == '.') {
                 fsit.disable_recursion_pending();
             }
         }
