@@ -353,8 +353,9 @@ void load_mods(FILE* f_arc) {
                     remove(backup_path);
                     debug_log("restored \"%s\"\n", backup_path);
                 }
-                else
-                    log(CONSOLE_RED "backup '0x%lx' does not exist\n" CONSOLE_RESET, offset);
+                else {
+                    log(CONSOLE_RED "backup of '%s', '0x%lx' does not exist\n" CONSOLE_RESET, arcFileName.c_str(), offset);
+                }
                 std::string parentPath = std::filesystem::path(backup_path).parent_path();
                 delete[] backup_path;
                 rmdir(parentPath.c_str());
