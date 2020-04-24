@@ -107,7 +107,7 @@ bool compressFile(const char* path, u64 compSize, u64 &dataSize, char* outBuff, 
         if(bytesAway != ULONG_MAX)
             log("%lu bytes too large " CONSOLE_RED "compression failed on %s\n" CONSOLE_RESET, bytesAway, path);
         else
-            log(CONSOLE_RED "Compression failed on %s\n" CONSOLE_RESET, path);
+            log(CONSOLE_RED "Can not compress %s to %lx bytes\n" CONSOLE_RESET, path, compSize);
         return false;
     }
     delete[] inBuff;
@@ -316,7 +316,7 @@ void load_mods(FILE* f_arc) {
         s64 offset = mod_files[i].offset;
 
         if(offset == 0) {
-            log(CONSOLE_RED "\"%s\" was not found in the data.arc and no offset was in its name\n" CONSOLE_RESET "   Make sure the file name and path are correct.\n", arcFileName.c_str());
+            log(CONSOLE_RED "\"%s\" does not exist, check its path\n" CONSOLE_RESET, arcFileName.c_str());
             continue;
         }
         const char* mod_path_c_str = mod_path.c_str();
@@ -354,7 +354,7 @@ void load_mods(FILE* f_arc) {
                     debug_log("restored \"%s\"\n", backup_path);
                 }
                 else {
-                    log(CONSOLE_RED "backup of '%s', '0x%lx' does not exist\n" CONSOLE_RESET, arcFileName.c_str(), offset);
+                    log(CONSOLE_RED "backup of '%s', '0x%lx' does not exist. The file may have been overwitten by another mod.\n" CONSOLE_RESET, arcFileName.c_str(), offset);
                 }
                 std::string parentPath = std::filesystem::path(backup_path).parent_path();
                 delete[] backup_path;
