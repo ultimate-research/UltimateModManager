@@ -86,7 +86,7 @@ bool compressFile(const char* path, u64 compSize, u64 &dataSize, char* outBuff, 
     u64 bytesAway = ULONG_MAX;
     if(compContext == nullptr) compContext = ZSTD_createCCtx();
     // Minimize header size
-    ZSTD_CCtx_setParameter(compContext, ZSTD_c_contentSizeFlag, 1);
+    ZSTD_CCtx_setParameter(compContext, ZSTD_c_contentSizeFlag, 0);
     ZSTD_CCtx_setParameter(compContext, ZSTD_c_checksumFlag, 0);
     ZSTD_CCtx_setParameter(compContext, ZSTD_c_dictIDFlag, 1);
     do {
