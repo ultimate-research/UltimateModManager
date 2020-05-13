@@ -86,9 +86,12 @@ void copy(const char* from, const char* to, bool exfat = false)
     u64 size = ftell(source);
     fseek(source, 0, SEEK_SET);
 
-    if(std::filesystem::space(to).available < size)
+    std::uintmax_t spaceAvailable = std::filesystem::space(to).available;
+    if(spaceAvailable < size)
     {
-      printf(CONSOLE_RED "\nNot enough storage space on the SD card." CONSOLE_RESET);
+      double mbAvailable = spaceAvailable/1024.0/1024.0;
+      double mbNeeded = size/1024.0/1024.0;
+      printf(CONSOLE_RED "\nNot enough storage space on the SD card.\nYou need %.2f MB, you have %.2f MB available" CONSOLE_RESET, mbNeeded, mbAvailable);
       fclose(source);
       romfsUnmount("romfs");
       return;
