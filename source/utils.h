@@ -212,7 +212,7 @@ std::string dataArcPath(cfwName cfw) {
             path = "sdmc:/sxos/titles/01006A800016E000/romfs/data.arc";
             break;
         case ReiNX:
-            path = "sdmc:/ReiNX/titles/01006A800016E000/romfs/data.arc";
+            path = "sdmc:/ReiNX/contents/01006A800016E000/romfs/data.arc";
             break;
     }
     return path;
