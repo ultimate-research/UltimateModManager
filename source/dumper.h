@@ -71,8 +71,25 @@ void copy(const char* from, const char* to, bool exfat = false)
     removeRecursive(backups);
     mkdir(backups.c_str(), 0777);
     remove(tablePath);
-    remove(outPath.c_str());
-    fsdevDeleteDirectoryRecursively(outPath.c_str());
+    rc = fsFsDeleteFile(fsdevGetDeviceFileSystem("sdmc"), outPath.c_str());
+    if(R_FAILED(rc))
+    {
+        // 0x202 = Path does not exist.
+        if(rc == 0x202)
+        {
+            rc = fsdevDeleteDirectoryRecursively(outPath.c_str());
+            if(R_FAILED(rc) && rc != 0x202)
+            {
+                printf(CONSOLE_RED "\nFailed to remove the data.arc folder. error: 0x%x" CONSOLE_RESET, rc);
+                return;
+            }
+        }
+        else
+        {
+            printf(CONSOLE_RED "\nFailed to remove the data.arc. error: 0x%x" CONSOLE_RESET, rc);
+            return;
+        }
+    }
     romfsMountFromCurrentProcess("romfs");
     FILE* source = fopen(from, "rb");
     if(source == nullptr)

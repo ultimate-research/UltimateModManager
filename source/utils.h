@@ -204,15 +204,15 @@ std::string dataArcPath(cfwName cfw) {
     switch(cfw) {
         case atmosphere:
             if(getAtmosVersion() >= 1000)
-                path = "sdmc:/atmosphere/contents/01006A800016E000/romfs/data.arc";
+                path = "/atmosphere/contents/01006A800016E000/romfs/data.arc";
             else
-                path = "sdmc:/atmosphere/titles/01006A800016E000/romfs/data.arc";
+                path = "/atmosphere/titles/01006A800016E000/romfs/data.arc";
             break;
         case sxos:
-            path = "sdmc:/sxos/titles/01006A800016E000/romfs/data.arc";
+            path = "/sxos/titles/01006A800016E000/romfs/data.arc";
             break;
         case ReiNX:
-            path = "sdmc:/ReiNX/contents/01006A800016E000/romfs/data.arc";
+            path = "/ReiNX/contents/01006A800016E000/romfs/data.arc";
             break;
     }
     return path;
