@@ -21,7 +21,7 @@ jobs:
       run: make LATESTTAG=Beta
 
     - name: Upload Release
-      uses: majkrzak/create-release@latest
+      uses: Genwald/create-release@eba889c
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         name: beta
