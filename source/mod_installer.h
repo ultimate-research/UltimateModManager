@@ -83,29 +83,31 @@ bool compressFile(const char* path, u64 compSize, u64 &dataSize, char* outBuff, 
     fread(inBuff, sizeof(char), inSize, inFile);
     fclose(inFile);
     int compLvl = 3;
-    u64 bytesAway = ULONG_MAX;
+    s64 bytesAway = LONG_MAX;
     if(compContext == nullptr) compContext = ZSTD_createCCtx();
     // Minimize header size
     ZSTD_CCtx_setParameter(compContext, ZSTD_c_contentSizeFlag, 1);
     ZSTD_CCtx_setParameter(compContext, ZSTD_c_checksumFlag, 0);
     ZSTD_CCtx_setParameter(compContext, ZSTD_c_dictIDFlag, 1);
     do {
-    ZSTD_CCtx_setParameter(compContext, ZSTD_c_compressionLevel, compLvl++);
-    dataSize = ZSTD_compress2(compContext, outBuff, bufSize, inBuff, inSize);
-    if(ZSTD_isError(dataSize) && ZSTD_getErrorCode(dataSize) != ZSTD_error_dstSize_tooSmall)
-        log("%s Error at lvl %d: %lx %s\n", path, compLvl, dataSize, ZSTD_getErrorName(dataSize));
-    if(!ZSTD_isError(dataSize) && dataSize > compSize) {
-        debug_log("Compressed \"%s\" to %lu bytes, %lu bytes away from goal, at level %d.\n", path, dataSize, dataSize - compSize, compLvl-1);
-        if(dataSize - compSize < bytesAway)
-            bytesAway = dataSize - compSize;
-    }
-    if(compLvl==10) compLvl = 17;  // skip arbitrary amount of levels for speed.
+        ZSTD_CCtx_reset(compContext, ZSTD_reset_session_only);
+        ZSTD_CCtx_setParameter(compContext, ZSTD_c_compressionLevel, compLvl++);
+        dataSize = ZSTD_compress2(compContext, outBuff, bufSize, inBuff, inSize);
+        if(ZSTD_isError(dataSize))
+            log("%s Error at lvl %d: %lx %s\n", path, compLvl, dataSize, ZSTD_getErrorName(dataSize));
+        if(!ZSTD_isError(dataSize) && dataSize > compSize) {
+            debug_log("Compressed \"%s\" to %lu bytes, %lu bytes away from goal, at level %d.\n", path, dataSize, dataSize - compSize, compLvl-1);
+            if((s64)(dataSize - compSize) < bytesAway)
+                bytesAway = dataSize - compSize;
+        }
+        // Caused issues too often
+        //if(compLvl==10) compLvl = 17;  // skip arbitrary amount of levels for speed.
     }
     while((dataSize > compSize || ZSTD_isError(dataSize) || !paddable(compSize - dataSize)) && compLvl <= ZSTD_maxCLevel());
 
     if(compLvl > ZSTD_maxCLevel()) {
-        if(bytesAway != ULONG_MAX)
-            log("%lu bytes too large " CONSOLE_RED "compression failed on %s\n" CONSOLE_RESET, bytesAway, path);
+        if(bytesAway != LONG_MAX)
+            log("%lx bytes too large " CONSOLE_RED "compression failed on %s\n" CONSOLE_RESET, bytesAway, path);
         else
             log(CONSOLE_RED "Can not compress %s to %lx bytes\n" CONSOLE_RESET, path, compSize);
         return false;
@@ -179,13 +181,13 @@ bool writeFileToOffset(FILE* inFile, FILE* outFile, u64 offset) {
 }
 
 int load_mod(ModFile &mod, FILE* arc) {
-    char* compBuf = nullptr;
-    u64 bufSize = mod.compSize+0x100;
-    u64 compSize = 0;
     std::string pathStr = mod.mod_path;
     const char* path = mod.mod_path.c_str();
-
     u64 modSize = std::filesystem::file_size(path);
+    char* compBuf = nullptr;
+    u64 bufSize = ZSTD_compressBound(modSize); //mod.compSize+0x100;
+    u64 compSize = 0;
+
     if(mod.compSize != 0) {
         std::string arcFileName = pathStr.substr(pathStr.find('/',pathStr.find("mods/")+5)+1);
         bool infoUpdated = false;
