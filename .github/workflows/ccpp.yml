@@ -16,7 +16,7 @@ jobs:
     - name: Install gdebi-core
       run: sudo apt-get install gdebi-core
     - name: Install DKP
-      run: printf "\ny" | sudo gdebi devkitpro-pacman.amd64.deb
+      run: sudo gdebi --non-interactive devkitpro-pacman.amd64.deb
     - name: Install packages
       run: printf "\nY" | sudo dkp-pacman -Sy switch-dev switch-mbedtls
     - name: make
