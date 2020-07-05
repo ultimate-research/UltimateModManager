@@ -8,15 +8,16 @@ jobs:
       DEVKITPRO: /opt/devkitpro
 
     runs-on: ubuntu-latest
+    container: devkitpro/toolchain-base:latest
     
     steps:
     - uses: actions/checkout@master
-    - name: Download DEVKITPRO
-      run: wget https://github.com/devkitPro/pacman/releases/download/v1.0.2/devkitpro-pacman.amd64.deb
-    - name: Install gdebi-core
-      run: sudo apt-get install gdebi-core
-    - name: Install DKP
-      run: sudo gdebi --non-interactive devkitpro-pacman.amd64.deb
+#     - name: Download DEVKITPRO
+#       run: wget https://github.com/devkitPro/pacman/releases/download/v1.0.2/devkitpro-pacman.amd64.deb
+#     - name: Install gdebi-core
+#       run: sudo apt-get install gdebi-core
+#     - name: Install DKP
+#       run: sudo gdebi --non-interactive devkitpro-pacman.amd64.deb
     - name: Install packages
       run: printf "\nY" | sudo dkp-pacman -Sy switch-dev switch-mbedtls
     - name: make
