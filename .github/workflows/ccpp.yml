@@ -12,6 +12,7 @@ jobs:
       run: make LATESTTAG=Beta
   upload:
     runs-on: ubuntu-latest
+    needs: build
     steps:
     - name: Upload Release
       uses: Genwald/create-release@eba889c
