@@ -5,12 +5,14 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
+    container: devkitpro/devkita64:latest
     steps:
     - uses: actions/checkout@master
-    - uses: docker://devkitpro/devkita64:latest
     - name: make
       run: make LATESTTAG=Beta
-
+  upload:
+    runs-on: ubuntu-latest
+    steps:
     - name: Upload Release
       uses: Genwald/create-release@eba889c
       with:
