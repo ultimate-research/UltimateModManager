@@ -8,7 +8,7 @@ jobs:
       DEVKITPRO: /opt/devkitpro
 
     runs-on: ubuntu-latest
-    container: devkitpro/toolchain-base:latest
+    container: devkitpro/devkita64:latest
     
     steps:
     - uses: actions/checkout@master
