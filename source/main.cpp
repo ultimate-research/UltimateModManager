@@ -54,7 +54,6 @@ int main(int argc, char **argv)
         printDumperMenu();
     }
     remove(log_file);
-    smashVersion = getSmashVersion();
     applicationMode = isApplicationMode();
     updateInstalledList();
 

@@ -36,7 +36,6 @@ std::vector<ModFile> mod_files;
 
 bool installation_finish = false;
 s64 mod_folder_index = 0;
-int smashVersion;
 ZSTD_CCtx* compContext = nullptr;
 std::list<s64> installIDXs;
 std::list<std::string> InstalledMods;
@@ -412,6 +411,8 @@ int enumerate_mod_files(std::string mod_dir) {
 }
 
 void perform_installation() {
+    Result res;
+    int smashVersion;
     std::string rootModDir = modDirList.front();
     FILE* f_arc;
     if(!std::filesystem::exists(arc_path) || std::filesystem::is_directory(std::filesystem::status(arc_path))) {
@@ -442,7 +443,8 @@ void perform_installation() {
         pendingTableWrite = false;
     }
     fclose(f_arc);
-    if(arcReader != nullptr && arcReader->Version != smashVersion) {
+    res = getSmashVersion(&smashVersion);
+    if(arcReader != nullptr && R_SUCCEEDED(res) && arcReader->Version != smashVersion) {
         printf(CONSOLE_RED "Warning: Your data.arc does not match your game version\n" CONSOLE_RESET);
     }
     if(deleteMod) {

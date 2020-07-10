@@ -102,25 +102,30 @@ int getRegion() {
     return regionMap.find((char*)&languageCode)->second;
 }
 
-void getVersion(u64 tid, char version[0x10]) {
+Result getVersion(u64 tid, char version[0x10]) {
+    Result rc;
     nsInitialize();
     NsApplicationControlData contolData;
-    nsGetApplicationControlData(NsApplicationControlSource_Storage, tid, &contolData, sizeof(NsApplicationControlData), NULL);
+    rc = nsGetApplicationControlData(NsApplicationControlSource_Storage, tid, &contolData, sizeof(NsApplicationControlData), NULL);
     nsExit();
     strcpy(version, contolData.nacp.display_version);
+    return rc;
 }
 
-int getSmashVersion() {
-    int out = 0;
+Result getSmashVersion(int* out) {
+    Result rc;
     char version[0x10];
-    getVersion(smashTID, version);
-    char* value = strtok(version, ".");
-    out += strtol(value, NULL, 16) * 0x10000;
-    value = strtok(NULL, ".");
-    out += strtol(value, NULL, 16) * 0x100;
-    value = strtok(NULL, ".");
-    out += strtol(value, NULL, 16);
-    return out;
+    *out = 0;
+    rc = getVersion(smashTID, version);
+    if(R_SUCCEEDED(rc)) {
+        char* value = strtok(version, ".");
+        *out += strtol(value, NULL, 16) * 0x10000;
+        value = strtok(NULL, ".");
+        *out += strtol(value, NULL, 16) * 0x100;
+        value = strtok(NULL, ".");
+        *out += strtol(value, NULL, 16);
+    }
+    return rc;
 }
 
 void print_progress(size_t progress, size_t max) {
