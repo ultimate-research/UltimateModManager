@@ -20,7 +20,7 @@ void md5HashFromFile(std::string filename, unsigned char* out)
     FILE *inFile = fopen (filename.c_str(), "rb");
     mbedtls_md5_context md5Context;
     int bytes;
-    u64 bufSize = 512000;
+    const u64 bufSize = 512000;
     unsigned char data[bufSize];
 
     if (inFile == NULL)
@@ -56,7 +56,7 @@ void copy(const char* from, const char* to, bool exfat = false)
     //const u64 fat32Max = 0xFFFFFFFF;
     //const u64 splitSize = 0xFFFF0000;
     const u64 smashTID = 0x01006A800016E000;
-    u64 bufSize = 0x0F116C00;
+    const u64 bufSize = 0x0F116C00;
 
     if(runningTID() != smashTID)
     {
@@ -146,19 +146,19 @@ void copy(const char* from, const char* to, bool exfat = false)
     int percent = 0;
     u32 srcCRC;
     u32 destCRC;
+    u32 failCount = 0;
+    u64 dataSize = bufSize;
     if(size == 0)
       printf(CONSOLE_RED "\nThere was a problem opening the data.arc" CONSOLE_RESET);
     while(sizeWritten < size)
     {
-      if(sizeWritten + bufSize > size)
+      if(sizeWritten + dataSize > size)
       {
-        delete[] buf;
-        bufSize = size-sizeWritten;
-        buf = new char[bufSize];
+        dataSize = size-sizeWritten;
       }
-      fread(buf, sizeof(char), bufSize, source);
-      ret = fwrite(buf, sizeof(char), bufSize, dest);
-      if(ret != bufSize)
+      fread(buf, sizeof(char), dataSize, source);
+      ret = fwrite(buf, sizeof(char), dataSize, dest);
+      if(ret != dataSize)
       {
         printf(CONSOLE_RED "\nSomething went wrong!" CONSOLE_RESET);
         if(sizeWritten > 0 && exfat)
@@ -170,21 +170,40 @@ void copy(const char* from, const char* to, bool exfat = false)
       }
       if(verifyDump)
       {
-          srcCRC = crc32Calculate(buf, bufSize);
-          fseek(dest, -bufSize, SEEK_CUR);
-          fread(buf, sizeof(char), bufSize, dest);
-          destCRC = crc32Calculate(buf, bufSize);
+          srcCRC = crc32Calculate(buf, dataSize);
+          fseek(dest, -dataSize, SEEK_CUR);
+          fread(buf, sizeof(char), dataSize, dest);
+          destCRC = crc32Calculate(buf, dataSize);
           if(srcCRC != destCRC)
           {
-              printf(CONSOLE_RED "\nVerification failed. An error has occured in writing the file. Halting dump." CONSOLE_RESET);
-              fclose(dest);
-              fclose(source);
-              romfsUnmount("romfs");
-              fsFsDeleteFile(fsdevGetDeviceFileSystem("sdmc"), outPath.c_str());
-              return;
+              if(failCount < 3)
+              {
+                  ++failCount;
+                  printf(CONSOLE_RED "\nVerification failed %u time(s). Retrying." CONSOLE_RESET, failCount);
+                  consoleUpdate(NULL);
+                  fseek(dest, -dataSize, SEEK_CUR);
+                  fseek(source, -dataSize, SEEK_CUR);
+                  continue;
+              }
+              else
+              {
+                  printf(CONSOLE_RED "\nVerification failed. An error has occured in writing the file. Halting dump." CONSOLE_RESET);
+                  fclose(dest);
+                  fclose(source);
+                  delete[] buf;
+                  romfsUnmount("romfs");
+                  fsFsDeleteFile(fsdevGetDeviceFileSystem("sdmc"), outPath.c_str());
+                  return;
+              }
+          }
+          else if (failCount != 0)
+          {
+              // clearing "failed" lines
+              printf("\x1b[%uA\x1b[0J",failCount);
+              failCount = 0;
           }
       }
-      sizeWritten += bufSize;
+      sizeWritten += dataSize;
       percent = sizeWritten * 100 / size;
       print_progress(percent, 100);
       //printf("\x1b[20;2Hdest pos: %lld, source pos: %lld", (long long int)dest.tellp(), (long long int)source.tellg());  // Debug log
