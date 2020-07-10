@@ -91,15 +91,16 @@ bool compressFile(const char* path, u64 compSize, u64 &dataSize, char* outBuff, 
     ZSTD_CCtx_setParameter(compContext, ZSTD_c_dictIDFlag, 1);
     do {
         ZSTD_CCtx_reset(compContext, ZSTD_reset_session_only);
-        ZSTD_CCtx_setParameter(compContext, ZSTD_c_compressionLevel, compLvl++);
+        ZSTD_CCtx_setParameter(compContext, ZSTD_c_compressionLevel, compLvl);
         dataSize = ZSTD_compress2(compContext, outBuff, bufSize, inBuff, inSize);
         if(ZSTD_isError(dataSize))
             log("%s Error at lvl %d: %lx %s\n", path, compLvl, dataSize, ZSTD_getErrorName(dataSize));
         if(!ZSTD_isError(dataSize) && dataSize > compSize) {
-            debug_log("Compressed \"%s\" to %lu bytes, %lu bytes away from goal, at level %d.\n", path, dataSize, dataSize - compSize, compLvl-1);
+            debug_log("Compressed \"%s\" to %lu bytes, %lu bytes away from goal, at level %d.\n", path, dataSize, dataSize - compSize, compLvl);
             if((s64)(dataSize - compSize) < bytesAway)
                 bytesAway = dataSize - compSize;
         }
+        compLvl++;
         // Caused issues too often
         //if(compLvl==10) compLvl = 17;  // skip arbitrary amount of levels for speed.
     }
