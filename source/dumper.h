@@ -11,6 +11,7 @@
 
 bool dump_done = false;
 bool exfat = false;
+bool verifyDump = false;
 std::string outPath = dataArcPath(getCFW());
 const int MD5_DIGEST_LENGTH = 16;
 
@@ -129,7 +130,7 @@ void copy(const char* from, const char* to, bool exfat = false)
       }
     }
 
-    FILE* dest = fopen(to, "wb");
+    FILE* dest = fopen(to, "wb+");
     if(dest == nullptr)
     {
       printf(CONSOLE_RED "\nCould not open the destination file. error: %s" CONSOLE_RESET, strerror(errno));
@@ -143,8 +144,10 @@ void copy(const char* from, const char* to, bool exfat = false)
     u64 sizeWritten = 0;
     size_t ret;
     int percent = 0;
+    u32 srcCRC;
+    u32 destCRC;
     if(size == 0)
-      printf(CONSOLE_RED "\nThere might be a problem with the data.arc file on your SD card. Please remove the file manually." CONSOLE_RESET);
+      printf(CONSOLE_RED "\nThere was a problem opening the data.arc" CONSOLE_RESET);
     while(sizeWritten < size)
     {
       if(sizeWritten + bufSize > size)
@@ -164,6 +167,22 @@ void copy(const char* from, const char* to, bool exfat = false)
         fclose(source);
         romfsUnmount("romfs");
         return;
+      }
+      if(verifyDump)
+      {
+          srcCRC = crc32Calculate(buf, bufSize);
+          fseek(dest, -bufSize, SEEK_CUR);
+          fread(buf, sizeof(char), bufSize, dest);
+          destCRC = crc32Calculate(buf, bufSize);
+          if(srcCRC != destCRC)
+          {
+              printf(CONSOLE_RED "\nVerification failed. An error has occured in writing the file. Halting dump." CONSOLE_RESET);
+              fclose(dest);
+              fclose(source);
+              romfsUnmount("romfs");
+              fsFsDeleteFile(fsdevGetDeviceFileSystem("sdmc"), outPath.c_str());
+              return;
+          }
       }
       sizeWritten += bufSize;
       percent = sizeWritten * 100 / size;
@@ -214,7 +233,16 @@ void dumperMainLoop(int kDown) {
     if (kDown & KEY_A) exfat = false;
     if ((kDown & KEY_A || kDown & KEY_Y) && !dump_done)
     {
-        printf("\nBeginning the dumping process...\n" CONSOLE_ESC(s));
+        if(kHeld & KEY_R)
+        {
+            verifyDump = true;
+            printf("\nBeginning the dumping process with verification...\n" CONSOLE_ESC(s));
+        }
+        else
+        {
+            verifyDump = false;
+            printf("\nBeginning the dumping process...\n" CONSOLE_ESC(s));
+        }
         consoleUpdate(NULL);
         u64 startTime = std::time(0);
         appletBeginBlockingHomeButton(0);
