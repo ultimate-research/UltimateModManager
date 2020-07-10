@@ -194,14 +194,22 @@ enum cfwName {
     atmosphere,
     sxos,
     ReiNX,
+    yuzu,
 };
 cfwName getCFW()
 {
-  if (isServiceRunning("rnx"))
-    return ReiNX;
-  if (isServiceRunning("tx"))
-    return sxos;
-  return atmosphere;
+    if (isServiceRunning("rnx"))
+        return ReiNX;
+    if (isServiceRunning("tx"))
+        return sxos;
+    SplConfigItem SplConfigItem_ExosphereVersion = (SplConfigItem)65000;
+    u64 output;
+    splInitialize();
+    Result res = splGetConfig(SplConfigItem_ExosphereVersion, &output);
+    splExit();
+    if (R_SUCCEEDED(res))
+        return atmosphere;
+    return yuzu;
 }
 
 std::string dataArcPath(cfwName cfw) {
@@ -218,6 +226,9 @@ std::string dataArcPath(cfwName cfw) {
             break;
         case ReiNX:
             path = "/ReiNX/contents/01006A800016E000/romfs/data.arc";
+            break;
+        case yuzu:
+            path = "/yuzu/load/01006A800016E000/UMM/romfs/data.arc";
             break;
     }
     return path;
