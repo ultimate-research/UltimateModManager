@@ -360,7 +360,10 @@ void load_mods(FILE* f_arc) {
                 }
                 std::string parentPath = std::filesystem::path(backup_path).parent_path();
                 delete[] backup_path;
-                rmdir(parentPath.c_str());
+                std::error_code ec;
+                if(std::filesystem::is_empty(parentPath, ec)) {
+                    rmdir(parentPath.c_str());
+                }
             }
         }
     }
