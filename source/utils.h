@@ -287,12 +287,17 @@ void shortVibratePattern()
   u32 VibrationDeviceHandle[2];
   HidVibrationValue VibrationValue;
 
-  VibrationValue.amp_low   = 1.0f;
+  VibrationValue.amp_low   = 0.35f;
   VibrationValue.freq_low  = 160.0f;
   VibrationValue.amp_high  = 0.2f;
   VibrationValue.freq_high = 320.0f;
 
-  hidInitializeVibrationDevices(VibrationDeviceHandle, 2, CONTROLLER_HANDHELD, (HidControllerType)(TYPE_HANDHELD | TYPE_JOYCON_PAIR));
+  if(hidIsControllerConnected(CONTROLLER_PLAYER_1)) {
+    hidInitializeVibrationDevices(VibrationDeviceHandle, 2, CONTROLLER_PLAYER_1, hidGetControllerType(CONTROLLER_PLAYER_1));
+  }
+  else {
+    hidInitializeVibrationDevices(VibrationDeviceHandle, 2, CONTROLLER_HANDHELD, TYPE_HANDHELD);
+  }
 
   vibrateFor(VibrationValue, VibrationDeviceHandle, 1e+9);
   svcSleepThread(3.5e+7);
