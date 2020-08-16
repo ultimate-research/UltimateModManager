@@ -20,7 +20,7 @@ ArcReader* arcReader = nullptr;
 
 bool uninstall = false;
 bool deleteMod = false;
-bool pendingTableWrite = false;
+std::queue<std::string> TableWriteFiles;
 typedef struct ModFile {
     std::string mod_path;
     s64 offset;
@@ -217,8 +217,9 @@ int load_mod(ModFile &mod, FILE* arc) {
                 return -1;
             }
         }
-        if(infoUpdated)
-            pendingTableWrite = true;
+        if(infoUpdated) {
+            TableWriteFiles.push(arcFileName);
+        }
     }
     const char* modNameStart = path+strlen(mods_root);
     u32 modNameSize = (u32)(strchr(modNameStart, '/') - modNameStart);
@@ -439,11 +440,14 @@ void perform_installation() {
         goto end;
     }
     load_mods(f_arc);
-    if(pendingTableWrite) {
-        printf("Writing file table\n");
+    if(!TableWriteFiles.empty()) {
+        printf("(this may take a minute)\nWriting file table for:\n\n");
+        while(!TableWriteFiles.empty()) {
+            printf("%s\n",TableWriteFiles.front().c_str());
+            TableWriteFiles.pop();
+        }
         consoleUpdate(NULL);
         arcReader->writeFileInfo(f_arc);
-        pendingTableWrite = false;
     }
     fclose(f_arc);
     res = getSmashVersion(&smashVersion);
