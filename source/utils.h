@@ -119,11 +119,11 @@ Result getSmashVersion(int* out) {
     rc = getVersion(smashTID, version);
     if(R_SUCCEEDED(rc)) {
         char* value = strtok(version, ".");
-        *out += strtol(value, NULL, 16) * 0x10000;
+        *out += strtol(value, NULL, 10) * 0x10000;
         value = strtok(NULL, ".");
-        *out += strtol(value, NULL, 16) * 0x100;
+        *out += strtol(value, NULL, 10) * 0x100;
         value = strtok(NULL, ".");
-        *out += strtol(value, NULL, 16);
+        *out += strtol(value, NULL, 10);
     }
     return rc;
 }
