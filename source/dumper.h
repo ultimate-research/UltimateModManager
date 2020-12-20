@@ -255,13 +255,14 @@ void dumperMainLoop(int kDown) {
         if(kHeld & KEY_R)
         {
             verifyDump = true;
-            printf("\nBeginning the dumping process with verification...\n" CONSOLE_ESC(s));
+            printf("\nBeginning the dumping process with verification...");
         }
         else
         {
             verifyDump = false;
-            printf("\nBeginning the dumping process...\n" CONSOLE_ESC(s));
+            printf("\nBeginning the dumping process...");
         }
+        printf("\nThe dump will be saved to: %s\n" CONSOLE_ESC(s), outPath.c_str());
         consoleUpdate(NULL);
         u64 startTime = std::time(0);
         appletBeginBlockingHomeButton(0);
