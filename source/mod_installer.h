@@ -441,9 +441,10 @@ void perform_installation() {
     }
     load_mods(f_arc);
     if(!TableWriteFiles.empty()) {
-        printf("(this may take a minute)\nWriting file table for:\n\n");
+        printf("Writing file table\n(this may take a minute)\n");
+        debug_log("Writing file table for:\n");
         while(!TableWriteFiles.empty()) {
-            printf("%s\n",TableWriteFiles.front().c_str());
+            debug_log("%s\n",TableWriteFiles.front().c_str());
             TableWriteFiles.pop();
         }
         consoleUpdate(NULL);
