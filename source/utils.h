@@ -194,7 +194,7 @@ enum cfwName {
     atmosphere,
     sxos,
     ReiNX,
-    yuzu,
+    yuzuOld,
 };
 cfwName getCFW()
 {
@@ -209,7 +209,7 @@ cfwName getCFW()
     splExit();
     if (R_SUCCEEDED(res))
         return atmosphere;
-    return yuzu;
+    return yuzuOld;
 }
 
 std::string dataArcPath(cfwName cfw) {
@@ -227,7 +227,7 @@ std::string dataArcPath(cfwName cfw) {
         case ReiNX:
             path = "/ReiNX/contents/01006A800016E000/romfs/data.arc";
             break;
-        case yuzu:
+        case yuzuOld:
             path = "/yuzu/load/01006A800016E000/UMM/romfs/data.arc";
             break;
     }
